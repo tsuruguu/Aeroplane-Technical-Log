@@ -6,3 +6,6 @@ flask-login
 flask-sqlalchemy
 flask-limiter
 flask-wtf
+psycopg2-binary
+gunicorn
+python-json-logger

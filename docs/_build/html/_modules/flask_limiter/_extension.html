@@ -1,0 +1,1274 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="pl" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>flask_limiter._extension &mdash; PDT 1.0 - dokumentacja</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=331e28ce"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=2827c288"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Indeks" href="../../genindex.html" />
+    <link rel="search" title="Szukaj" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            PDT
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Szukaj" aria-label="Szukaj" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Moduły:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Dokumentacja Techniczna PDT</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PDT</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Kod modułu</a></li>
+      <li class="breadcrumb-item active">flask_limiter._extension</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Kod źródłowy modułu flask_limiter._extension</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Flask-Limiter Extension</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">dataclasses</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">functools</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">itertools</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">weakref</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">overload</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">flask</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">flask.wrappers</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">limits</span><span class="w"> </span><span class="kn">import</span> <span class="n">RateLimitItem</span><span class="p">,</span> <span class="n">WindowStats</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">limits.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConfigurationError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">limits.storage</span><span class="w"> </span><span class="kn">import</span> <span class="n">MemoryStorage</span><span class="p">,</span> <span class="n">Storage</span><span class="p">,</span> <span class="n">storage_from_string</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">limits.strategies</span><span class="w"> </span><span class="kn">import</span> <span class="n">STRATEGIES</span><span class="p">,</span> <span class="n">RateLimiter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ordered_set</span><span class="w"> </span><span class="kn">import</span> <span class="n">OrderedSet</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">werkzeug.http</span><span class="w"> </span><span class="kn">import</span> <span class="n">http_date</span><span class="p">,</span> <span class="n">parse_date</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">._compat</span><span class="w"> </span><span class="kn">import</span> <span class="n">request_context</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._limits</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ApplicationLimit</span><span class="p">,</span>
+    <span class="n">Limit</span><span class="p">,</span>
+    <span class="n">MetaLimit</span><span class="p">,</span>
+    <span class="n">RouteLimit</span><span class="p">,</span>
+    <span class="n">RuntimeLimit</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">LimitManager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._typing</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">P</span><span class="p">,</span>
+    <span class="n">R</span><span class="p">,</span>
+    <span class="n">Sequence</span><span class="p">,</span>
+    <span class="n">cast</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">MAX_BACKEND_CHECKS</span><span class="p">,</span> <span class="n">ConfigVars</span><span class="p">,</span> <span class="n">ExemptionScope</span><span class="p">,</span> <span class="n">HeaderNames</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">RateLimitExceeded</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.util</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_qualified_name</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">RequestLimit</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Provides details of a rate limit within the context of a request</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1">#: The instance of the rate limit</span>
+    <span class="n">limit</span><span class="p">:</span> <span class="n">RateLimitItem</span>
+
+    <span class="c1">#: The full key for the request against which the rate limit is tested</span>
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
+
+    <span class="c1">#: Whether the limit was breached within the context of this request</span>
+    <span class="n">breached</span><span class="p">:</span> <span class="nb">bool</span>
+
+    <span class="c1">#: Whether the limit is a shared limit</span>
+    <span class="n">shared</span><span class="p">:</span> <span class="nb">bool</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">extension</span><span class="p">:</span> <span class="n">Limiter</span><span class="p">,</span>
+        <span class="n">limit</span><span class="p">:</span> <span class="n">RateLimitItem</span><span class="p">,</span>
+        <span class="n">request_args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">breached</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">shared</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">extension</span><span class="p">:</span> <span class="n">weakref</span><span class="o">.</span><span class="n">ProxyType</span><span class="p">[</span><span class="n">Limiter</span><span class="p">]</span> <span class="o">=</span> <span class="n">weakref</span><span class="o">.</span><span class="n">proxy</span><span class="p">(</span><span class="n">extension</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">limit</span> <span class="o">=</span> <span class="n">limit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">request_args</span> <span class="o">=</span> <span class="n">request_args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">limit</span><span class="o">.</span><span class="n">key_for</span><span class="p">(</span><span class="o">*</span><span class="n">request_args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">breached</span> <span class="o">=</span> <span class="n">breached</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shared</span> <span class="o">=</span> <span class="n">shared</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_window</span><span class="p">:</span> <span class="n">WindowStats</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">limiter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RateLimiter</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="n">RateLimiter</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">extension</span><span class="o">.</span><span class="n">limiter</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">window</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">WindowStats</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_window</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">limiter</span><span class="o">.</span><span class="n">get_window_stats</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">limit</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">request_args</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_window</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_at</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Timestamp at which the rate limit will be reset&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">remaining</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Quantity remaining for this rate limit&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+
+<span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">LimiterContext</span><span class="p">:</span>
+    <span class="n">view_rate_limit</span><span class="p">:</span> <span class="n">RequestLimit</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">view_rate_limits</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">RequestLimit</span><span class="p">]</span> <span class="o">=</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">conditional_deductions</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">RuntimeLimit</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">seen_limits</span><span class="p">:</span> <span class="n">OrderedSet</span><span class="p">[</span><span class="n">RuntimeLimit</span><span class="p">]</span> <span class="o">=</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">OrderedSet</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">view_rate_limit</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">view_rate_limits</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conditional_deductions</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seen_limits</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Limiter</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The :class:`Limiter` class initializes the Flask-Limiter extension.</span>
+
+<span class="sd">    :param key_func: a callable that returns the domain to rate limit by.</span>
+<span class="sd">    :param app: :class:`flask.Flask` instance to initialize the extension with.</span>
+<span class="sd">    :param default_limits: a list of strings, callables returning strings denoting default limits</span>
+<span class="sd">     or :class:`Limit` instances to apply to all routes that are not explicitely decorated with a</span>
+<span class="sd">     limit. :ref:`ratelimit-string` for  more details.</span>
+<span class="sd">    :param default_limits_per_method: whether default limits are applied per method, per route or</span>
+<span class="sd">     as a combination of all method per route.</span>
+<span class="sd">    :param default_limits_exempt_when: a function that should return True/False to decide if the</span>
+<span class="sd">     default limits should be skipped</span>
+<span class="sd">    :param default_limits_deduct_when: a function that receives the current :class:`flask.Response`</span>
+<span class="sd">     object and returns True/False to decide  if a deduction should be made from the default rate</span>
+<span class="sd">     limit(s)</span>
+<span class="sd">    :param default_limits_cost: The cost of a hit to the default limits as an integer or a function</span>
+<span class="sd">     that takes no parameters and returns an integer (Default: ``1``).</span>
+<span class="sd">    :param application_limits: a list of strings, callables returning strings for limits or</span>
+<span class="sd">     :class:`ApplicationLimit` that are applied to  the entire application</span>
+<span class="sd">     (i.e a shared limit for all routes)</span>
+<span class="sd">    :param application_limits_per_method: whether application limits are applied per method, per</span>
+<span class="sd">     route or as a combination of all method per route.</span>
+<span class="sd">    :param application_limits_exempt_when: a function that should return True/False to decide if the</span>
+<span class="sd">     application limits should be skipped</span>
+<span class="sd">    :param application_limits_deduct_when: a function that receives the current</span>
+<span class="sd">     :class:`flask.Response` object and returns True/False to decide  if a deduction should be made</span>
+<span class="sd">     from the application rate limit(s)</span>
+<span class="sd">    :param application_limits_cost: The cost of a hit to the global application limits as an integer</span>
+<span class="sd">     or a function that takes no parameters and returns an integer (Default: ``1``).</span>
+<span class="sd">    :param headers_enabled: whether ``X-RateLimit`` response headers are written.</span>
+<span class="sd">    :param header_name_mapping: Mapping of header names to use if :paramref:`Limiter.headers_enabled`</span>
+<span class="sd">     is ``True``. If no mapping is provided the default values will be used.</span>
+<span class="sd">    :param strategy: the strategy to use. Refer to :ref:`ratelimit-strategy`</span>
+<span class="sd">    :param storage_uri: the storage location. Refer to :data:`RATELIMIT_STORAGE_URI`</span>
+<span class="sd">    :param storage_options: kwargs to pass to the storage implementation upon instantiation.</span>
+<span class="sd">    :param swallow_errors: whether to swallow any errors when hitting a rate limit. An exception</span>
+<span class="sd">     will still be logged. default ``False``</span>
+<span class="sd">    :param fail_on_first_breach: whether to stop processing remaining limits after the first breach.</span>
+<span class="sd">     default ``True``</span>
+<span class="sd">    :param on_breach: a function that will be called when any limit in this extension is breached.</span>
+<span class="sd">     If the function returns an instance of :class:`flask.Response` that will be the response</span>
+<span class="sd">     embedded into the :exc:`RateLimitExceeded` exception raised.</span>
+<span class="sd">    :param meta_limits: a list of strings, callables returning strings for limits or</span>
+<span class="sd">     :class:`MetaLimit` that are used to control the upper limit of  a requesting client hitting</span>
+<span class="sd">     any configured rate limit. Once a meta limit is exceeded all subsequent requests will</span>
+<span class="sd">     raise a :class:`~flask_limiter.RateLimitExceeded` for the duration of the meta limit window.</span>
+<span class="sd">    :param on_meta_breach: a function that will be called when a meta limit in this extension is</span>
+<span class="sd">     breached. If the function returns an instance of :class:`flask.Response` that will be the</span>
+<span class="sd">     response embedded into the :exc:`RateLimitExceeded` exception raised.</span>
+<span class="sd">    :param in_memory_fallback: a list of strings or callables returning strings denoting fallback</span>
+<span class="sd">     limits to apply when the storage is down.</span>
+<span class="sd">    :param in_memory_fallback_enabled: fall back to in memory storage when the main storage is down</span>
+<span class="sd">     and inherits the original limits. default ``False``</span>
+<span class="sd">    :param retry_after: Allows configuration of how the value of the `Retry-After` header is</span>
+<span class="sd">     rendered. One of `http-date` or `delta-seconds`.</span>
+<span class="sd">    :param key_prefix: prefix prepended to rate limiter keys and app context global names.</span>
+<span class="sd">    :param request_identifier: a callable that returns the unique identity the current request.</span>
+<span class="sd">     Defaults to :attr:`flask.Request.endpoint`</span>
+<span class="sd">    :param enabled: Whether the extension is enabled or not</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">key_func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">app</span><span class="p">:</span> <span class="n">flask</span><span class="o">.</span><span class="n">Flask</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">default_limits</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="n">Limit</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">default_limits_per_method</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">default_limits_exempt_when</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">default_limits_deduct_when</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">flask</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Response</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">default_limits_cost</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">application_limits</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="n">ApplicationLimit</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">application_limits_per_method</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">application_limits_exempt_when</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">application_limits_deduct_when</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">flask</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Response</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">application_limits_cost</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">headers_enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">header_name_mapping</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">HeaderNames</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">strategy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">storage_uri</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">storage_options</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">swallow_errors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">fail_on_first_breach</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">on_breach</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">RequestLimit</span><span class="p">],</span> <span class="n">flask</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Response</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">meta_limits</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="n">MetaLimit</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">on_meta_breach</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">RequestLimit</span><span class="p">],</span> <span class="n">flask</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Response</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">in_memory_fallback</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">in_memory_fallback_enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">retry_after</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">key_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="n">request_identifier</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">app</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;flask-limiter&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">enabled</span> <span class="o">=</span> <span class="n">enabled</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialized</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_per_method</span> <span class="o">=</span> <span class="n">default_limits_per_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_exempt_when</span> <span class="o">=</span> <span class="n">default_limits_exempt_when</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_deduct_when</span> <span class="o">=</span> <span class="n">default_limits_deduct_when</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_cost</span> <span class="o">=</span> <span class="n">default_limits_cost</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_per_method</span> <span class="o">=</span> <span class="n">application_limits_per_method</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_exempt_when</span> <span class="o">=</span> <span class="n">application_limits_exempt_when</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_deduct_when</span> <span class="o">=</span> <span class="n">application_limits_deduct_when</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_cost</span> <span class="o">=</span> <span class="n">application_limits_cost</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_in_memory_fallback</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_in_memory_fallback_enabled</span> <span class="o">=</span> <span class="n">in_memory_fallback_enabled</span> <span class="ow">or</span> <span class="p">(</span>
+            <span class="n">in_memory_fallback</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">in_memory_fallback</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_route_exemptions</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ExemptionScope</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_blueprint_exemptions</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ExemptionScope</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_request_filters</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Callable</span><span class="p">[[],</span> <span class="nb">bool</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_headers_enabled</span> <span class="o">=</span> <span class="n">headers_enabled</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_header_mapping</span> <span class="o">=</span> <span class="n">header_name_mapping</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_retry_after</span> <span class="o">=</span> <span class="n">retry_after</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_strategy</span> <span class="o">=</span> <span class="n">strategy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_storage_uri</span> <span class="o">=</span> <span class="n">storage_uri</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_storage_options</span> <span class="o">=</span> <span class="n">storage_options</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_swallow_errors</span> <span class="o">=</span> <span class="n">swallow_errors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fail_on_first_breach</span> <span class="o">=</span> <span class="n">fail_on_first_breach</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_on_breach</span> <span class="o">=</span> <span class="n">on_breach</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_on_meta_breach</span> <span class="o">=</span> <span class="n">on_meta_breach</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_key_func</span> <span class="o">=</span> <span class="n">key_func</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_key_prefix</span> <span class="o">=</span> <span class="n">key_prefix</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_request_identifier</span> <span class="o">=</span> <span class="n">request_identifier</span>
+
+        <span class="n">_default_limits</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">Limit</span><span class="p">(</span>
+                    <span class="n">limit_provider</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span>
+                    <span class="n">key_function</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_key_func</span><span class="p">,</span>
+                    <span class="n">finalized</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">limit</span><span class="p">,</span> <span class="n">Limit</span><span class="p">)</span>
+                <span class="k">else</span> <span class="n">limit</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">limit</span> <span class="ow">in</span> <span class="n">default_limits</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="n">default_limits</span>
+            <span class="k">else</span> <span class="p">[]</span>
+        <span class="p">)</span>
+
+        <span class="n">_application_limits</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">ApplicationLimit</span><span class="p">(</span>
+                    <span class="n">limit_provider</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span>
+                    <span class="n">finalized</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">limit</span><span class="p">,</span> <span class="n">Limit</span><span class="p">)</span>
+                <span class="k">else</span> <span class="n">limit</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">limit</span> <span class="ow">in</span> <span class="n">application_limits</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="n">application_limits</span>
+            <span class="k">else</span> <span class="p">[]</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta_limits</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">MetaLimit</span><span class="p">(</span>
+                    <span class="n">limit_provider</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">limit</span><span class="p">,</span> <span class="n">Limit</span><span class="p">)</span>
+                <span class="k">else</span> <span class="n">limit</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">limit</span> <span class="ow">in</span> <span class="n">meta_limits</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="n">meta_limits</span>
+            <span class="k">else</span> <span class="p">[]</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">in_memory_fallback</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">limit</span> <span class="ow">in</span> <span class="n">in_memory_fallback</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_in_memory_fallback</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">Limit</span><span class="p">(</span>
+                        <span class="n">limit_provider</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span>
+                        <span class="n">key_function</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_key_func</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">limit</span><span class="p">,</span> <span class="n">Limit</span><span class="p">)</span>
+                    <span class="k">else</span> <span class="n">limit</span>
+                <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span><span class="p">:</span> <span class="n">Storage</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_limiter</span><span class="p">:</span> <span class="n">RateLimiter</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_storage_dead</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fallback_limiter</span><span class="p">:</span> <span class="n">RateLimiter</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__check_backend_count</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__last_check_backend</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_marked_for_limiting</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">addHandler</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">NullHandler</span><span class="p">())</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span> <span class="o">=</span> <span class="n">LimitManager</span><span class="p">(</span>
+            <span class="n">application_limits</span><span class="o">=</span><span class="n">_application_limits</span><span class="p">,</span>
+            <span class="n">default_limits</span><span class="o">=</span><span class="n">_default_limits</span><span class="p">,</span>
+            <span class="n">decorated_limits</span><span class="o">=</span><span class="p">{},</span>
+            <span class="n">blueprint_limits</span><span class="o">=</span><span class="p">{},</span>
+            <span class="n">route_exemptions</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_route_exemptions</span><span class="p">,</span>
+            <span class="n">blueprint_exemptions</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_blueprint_exemptions</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">app</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">init_app</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">init_app</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">:</span> <span class="n">flask</span><span class="o">.</span><span class="n">Flask</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param app: :class:`flask.Flask` instance to rate limit.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">enabled</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">ENABLED</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">enabled</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">enabled</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_per_method</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_per_method</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">DEFAULT_LIMITS_PER_METHOD</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_exempt_when</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_exempt_when</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">ConfigVars</span><span class="o">.</span><span class="n">DEFAULT_LIMITS_EXEMPT_WHEN</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_deduct_when</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_deduct_when</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">ConfigVars</span><span class="o">.</span><span class="n">DEFAULT_LIMITS_DEDUCT_WHEN</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_cost</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_cost</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">ConfigVars</span><span class="o">.</span><span class="n">DEFAULT_LIMITS_COST</span><span class="p">,</span> <span class="mi">1</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_swallow_errors</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_swallow_errors</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">SWALLOW_ERRORS</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fail_on_first_breach</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fail_on_first_breach</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">FAIL_ON_FIRST_BREACH</span><span class="p">,</span> <span class="kc">True</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_headers_enabled</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_headers_enabled</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">HEADERS_ENABLED</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_storage_options</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">STORAGE_OPTIONS</span><span class="p">,</span> <span class="p">{}))</span>
+        <span class="n">storage_uri_from_config</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">STORAGE_URI</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">storage_uri_from_config</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage_uri</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                    <span class="s2">&quot;Using the in-memory storage for tracking rate limits as no storage &quot;</span>
+                    <span class="s2">&quot;was explicitly specified. This is not recommended for production use. &quot;</span>
+                    <span class="s2">&quot;See: https://flask-limiter.readthedocs.io#configuring-a-storage-backend &quot;</span>
+                    <span class="s2">&quot;for documentation about configuring the storage backend.&quot;</span>
+                <span class="p">)</span>
+            <span class="n">storage_uri_from_config</span> <span class="o">=</span> <span class="s2">&quot;memory://&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span>
+            <span class="n">Storage</span><span class="p">,</span>
+            <span class="n">storage_from_string</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_storage_uri</span> <span class="ow">or</span> <span class="n">storage_uri_from_config</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">_storage_options</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_strategy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_strategy</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">STRATEGY</span><span class="p">,</span> <span class="s2">&quot;fixed-window&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_strategy</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">STRATEGIES</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ConfigurationError</span><span class="p">(</span><span class="s2">&quot;Invalid rate limiting strategy </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_strategy</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_limiter</span> <span class="o">=</span> <span class="n">STRATEGIES</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_strategy</span><span class="p">](</span><span class="bp">self</span><span class="o">.</span><span class="n">_storage</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_header_mapping</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">HeaderNames</span><span class="o">.</span><span class="n">RESET</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">HeaderNames</span><span class="o">.</span><span class="n">RESET</span><span class="p">,</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">HEADER_RESET</span><span class="p">,</span> <span class="n">HeaderNames</span><span class="o">.</span><span class="n">RESET</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
+            <span class="p">),</span>
+            <span class="n">HeaderNames</span><span class="o">.</span><span class="n">REMAINING</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">HeaderNames</span><span class="o">.</span><span class="n">REMAINING</span><span class="p">,</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">HEADER_REMAINING</span><span class="p">,</span> <span class="n">HeaderNames</span><span class="o">.</span><span class="n">REMAINING</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
+            <span class="p">),</span>
+            <span class="n">HeaderNames</span><span class="o">.</span><span class="n">LIMIT</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">HeaderNames</span><span class="o">.</span><span class="n">LIMIT</span><span class="p">,</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">HEADER_LIMIT</span><span class="p">,</span> <span class="n">HeaderNames</span><span class="o">.</span><span class="n">LIMIT</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
+            <span class="p">),</span>
+            <span class="n">HeaderNames</span><span class="o">.</span><span class="n">RETRY_AFTER</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="n">HeaderNames</span><span class="o">.</span><span class="n">RETRY_AFTER</span><span class="p">,</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">HEADER_RETRY_AFTER</span><span class="p">,</span> <span class="n">HeaderNames</span><span class="o">.</span><span class="n">RETRY_AFTER</span><span class="o">.</span><span class="n">value</span><span class="p">),</span>
+            <span class="p">),</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_retry_after</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_retry_after</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">HEADER_RETRY_AFTER_VALUE</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_key_prefix</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key_prefix</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">KEY_PREFIX</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_request_identifier</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request_identifier</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">ConfigVars</span><span class="o">.</span><span class="n">REQUEST_IDENTIFIER</span><span class="p">,</span> <span class="k">lambda</span><span class="p">:</span> <span class="n">flask</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">endpoint</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
+        <span class="p">)</span>
+        <span class="n">app_limits</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">APPLICATION_LIMITS</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_cost</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_cost</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">ConfigVars</span><span class="o">.</span><span class="n">APPLICATION_LIMITS_COST</span><span class="p">,</span> <span class="mi">1</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_per_method</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_per_method</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">APPLICATION_LIMITS_PER_METHOD</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_exempt_when</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_exempt_when</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">ConfigVars</span><span class="o">.</span><span class="n">APPLICATION_LIMITS_EXEMPT_WHEN</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_deduct_when</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_deduct_when</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">ConfigVars</span><span class="o">.</span><span class="n">APPLICATION_LIMITS_DEDUCT_WHEN</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span><span class="o">.</span><span class="n">_application_limits</span> <span class="ow">and</span> <span class="n">app_limits</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span><span class="o">.</span><span class="n">set_application_limits</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">ApplicationLimit</span><span class="p">(</span>
+                        <span class="n">limit_provider</span><span class="o">=</span><span class="n">app_limits</span><span class="p">,</span>
+                        <span class="n">per_method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_per_method</span><span class="p">,</span>
+                        <span class="n">exempt_when</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_exempt_when</span><span class="p">,</span>
+                        <span class="n">deduct_when</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_deduct_when</span><span class="p">,</span>
+                        <span class="n">cost</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_cost</span><span class="p">,</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">app_limits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span><span class="o">.</span><span class="n">_application_limits</span>
+
+            <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">app_limits</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">group</span><span class="o">.</span><span class="n">finalized</span><span class="p">:</span>
+                    <span class="n">group</span><span class="o">.</span><span class="n">cost</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_cost</span>
+                    <span class="n">group</span><span class="o">.</span><span class="n">per_method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_per_method</span>
+                    <span class="n">group</span><span class="o">.</span><span class="n">exempt_when</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_exempt_when</span>
+                    <span class="n">group</span><span class="o">.</span><span class="n">deduct_when</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_application_limits_deduct_when</span>
+                    <span class="n">group</span><span class="o">.</span><span class="n">finalized</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span><span class="o">.</span><span class="n">set_application_limits</span><span class="p">(</span><span class="n">app_limits</span><span class="p">)</span>
+
+        <span class="n">conf_limits</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">DEFAULT_LIMITS</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span><span class="o">.</span><span class="n">_default_limits</span> <span class="ow">and</span> <span class="n">conf_limits</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span><span class="o">.</span><span class="n">set_default_limits</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">Limit</span><span class="p">(</span>
+                        <span class="n">limit_provider</span><span class="o">=</span><span class="n">conf_limits</span><span class="p">,</span>
+                        <span class="n">key_function</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_key_func</span><span class="p">,</span>
+                        <span class="n">per_method</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_per_method</span><span class="p">,</span>
+                        <span class="n">exempt_when</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_exempt_when</span><span class="p">,</span>
+                        <span class="n">deduct_when</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_deduct_when</span><span class="p">,</span>
+                        <span class="n">cost</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_cost</span><span class="p">,</span>
+                    <span class="p">)</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">default_limit_groups</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span><span class="o">.</span><span class="n">_default_limits</span>
+
+            <span class="k">for</span> <span class="n">default_group</span> <span class="ow">in</span> <span class="n">default_limit_groups</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">default_group</span><span class="o">.</span><span class="n">finalized</span><span class="p">:</span>
+                    <span class="n">default_group</span><span class="o">.</span><span class="n">cost</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_cost</span>
+                    <span class="n">default_group</span><span class="o">.</span><span class="n">per_method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_per_method</span>
+                    <span class="n">default_group</span><span class="o">.</span><span class="n">exempt_when</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_exempt_when</span>
+                    <span class="n">default_group</span><span class="o">.</span><span class="n">deduct_when</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_default_limits_deduct_when</span>
+                    <span class="n">default_group</span><span class="o">.</span><span class="n">finalized</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span><span class="o">.</span><span class="n">set_default_limits</span><span class="p">(</span><span class="n">default_limit_groups</span><span class="p">)</span>
+
+        <span class="n">meta_limits</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">META_LIMITS</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta_limits</span> <span class="ow">and</span> <span class="n">meta_limits</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_meta_limits</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">MetaLimit</span><span class="p">(</span>
+                    <span class="n">limit_provider</span><span class="o">=</span><span class="n">meta_limits</span><span class="p">,</span>
+                    <span class="n">key_function</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_key_func</span><span class="p">,</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">meta_limits</span><span class="p">,</span> <span class="n">MetaLimit</span><span class="p">)</span>
+                <span class="k">else</span> <span class="n">meta_limits</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_on_breach</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_breach</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">ON_BREACH</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_on_meta_breach</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_meta_breach</span> <span class="ow">or</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">ON_META_BREACH</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__configure_fallbacks</span><span class="p">(</span><span class="n">app</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_strategy</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">app</span><span class="o">.</span><span class="n">extensions</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;limiter&quot;</span><span class="p">,</span> <span class="nb">set</span><span class="p">()):</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">before_request</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_check_request_limit</span><span class="p">)</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">after_request</span><span class="p">(</span><span class="n">partial</span><span class="p">(</span><span class="n">Limiter</span><span class="o">.</span><span class="n">__inject_headers</span><span class="p">,</span> <span class="bp">self</span><span class="p">))</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">teardown_request</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__release_context</span><span class="p">)</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s2">&quot;limiter&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initialized</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">context</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LimiterContext</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The context is meant to exist for the lifetime of a request/response cycle per instance of</span>
+<span class="sd">        the extension so as to keep track of any state used at different steps in the lifecycle</span>
+<span class="sd">        (for example to pass information from the before request hook to the after_request hook)</span>
+
+<span class="sd">        :meta private:</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ctx</span> <span class="o">=</span> <span class="n">request_context</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="s2">&quot;_limiter_request_context&quot;</span><span class="p">):</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">_limiter_request_context</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="n">LimiterContext</span><span class="p">)</span>  <span class="c1"># type: ignore</span>
+
+        <span class="k">return</span> <span class="n">cast</span><span class="p">(</span>
+            <span class="nb">dict</span><span class="p">[</span><span class="n">Limiter</span><span class="p">,</span> <span class="n">LimiterContext</span><span class="p">],</span>
+            <span class="n">ctx</span><span class="o">.</span><span class="n">_limiter_request_context</span><span class="p">,</span>  <span class="c1"># type: ignore</span>
+        <span class="p">)[</span><span class="bp">self</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">limit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">limit_value</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">key_func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">per_method</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">methods</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">exempt_when</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">override_defaults</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">deduct_when</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">flask</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Response</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">on_breach</span><span class="p">:</span> <span class="kc">None</span> <span class="o">|</span> <span class="p">(</span><span class="n">Callable</span><span class="p">[[</span><span class="n">RequestLimit</span><span class="p">],</span> <span class="n">flask</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Response</span> <span class="o">|</span> <span class="kc">None</span><span class="p">])</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">cost</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">meta_limits</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="n">MetaLimit</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RouteLimit</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Decorator to be used for rate limiting individual routes or blueprints.</span>
+
+<span class="sd">        :param limit_value: rate limit string or a callable that returns a string.</span>
+<span class="sd">         :ref:`ratelimit-string` for more details.</span>
+<span class="sd">        :param key_func: function/lambda to extract the unique identifier for the rate limit.</span>
+<span class="sd">        :param per_method: whether the limit is sub categorized into the http method of the request.</span>
+<span class="sd">        :param methods: if specified, only the methods in this list will be rate limited</span>
+<span class="sd">         (default: ``None``).</span>
+<span class="sd">        :param error_message: string (or callable that returns one) to override the error message</span>
+<span class="sd">         used in the response.</span>
+<span class="sd">        :param exempt_when: function/lambda used to decide if the rate limit should skipped.</span>
+<span class="sd">        :param override_defaults:  whether the decorated limit overrides the default limits</span>
+<span class="sd">         (Default: ``True``).</span>
+
+<span class="sd">         .. note:: When used with a :class:`~flask.Blueprint` the meaning</span>
+<span class="sd">            of the parameter extends to any parents the blueprint instance is</span>
+<span class="sd">            registered under. For more details see :ref:`recipes:nested blueprints`</span>
+
+<span class="sd">        :param deduct_when: a function that receives the current :class:`flask.Response` object and</span>
+<span class="sd">         returns True/False to decide if a deduction should be done from the rate limit</span>
+<span class="sd">        :param on_breach: a function that will be called when this limit is breached. If the</span>
+<span class="sd">         function returns an instance of :class:`flask.Response` that will be the response embedded</span>
+<span class="sd">         into the :exc:`RateLimitExceeded` exception raised.</span>
+<span class="sd">        :param cost: The cost of a hit or a function that takes no parameters and returns the cost</span>
+<span class="sd">         as an integer (Default: ``1``).</span>
+<span class="sd">        :param scope: a string or callable that returns a string for further categorizing the rate</span>
+<span class="sd">         limiting scope. This scope is combined with the current endpoint of the request.</span>
+
+
+<span class="sd">        Changes</span>
+<span class="sd">          - .. versionadded:: 2.9.0</span>
+
+<span class="sd">               The returned object can also be used as a context manager</span>
+<span class="sd">               for rate limiting a code block inside a view. For example::</span>
+
+<span class="sd">                 @app.route(&quot;/&quot;)</span>
+<span class="sd">                 def route():</span>
+<span class="sd">                   try:</span>
+<span class="sd">                     with limiter.limit(&quot;10/second&quot;):</span>
+<span class="sd">                       # something expensive</span>
+<span class="sd">                   except RateLimitExceeded: pass</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="n">RouteLimit</span><span class="p">(</span>
+            <span class="n">limit_provider</span><span class="o">=</span><span class="n">limit_value</span><span class="p">,</span>
+            <span class="n">limiter</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">key_function</span><span class="o">=</span><span class="n">key_func</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key_func</span><span class="p">,</span>
+            <span class="n">shared</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">per_method</span><span class="o">=</span><span class="n">per_method</span><span class="p">,</span>
+            <span class="n">methods</span><span class="o">=</span><span class="n">methods</span><span class="p">,</span>
+            <span class="n">error_message</span><span class="o">=</span><span class="n">error_message</span><span class="p">,</span>
+            <span class="n">exempt_when</span><span class="o">=</span><span class="n">exempt_when</span><span class="p">,</span>
+            <span class="n">override_defaults</span><span class="o">=</span><span class="n">override_defaults</span><span class="p">,</span>
+            <span class="n">deduct_when</span><span class="o">=</span><span class="n">deduct_when</span><span class="p">,</span>
+            <span class="n">on_breach</span><span class="o">=</span><span class="n">on_breach</span><span class="p">,</span>
+            <span class="n">cost</span><span class="o">=</span><span class="n">cost</span><span class="p">,</span>
+            <span class="n">meta_limits</span><span class="o">=</span><span class="n">meta_limits</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">shared_limit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">limit_value</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">key_func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">per_method</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">methods</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">error_message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">exempt_when</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">override_defaults</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">deduct_when</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">flask</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Response</span><span class="p">],</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">on_breach</span><span class="p">:</span> <span class="kc">None</span> <span class="o">|</span> <span class="p">(</span><span class="n">Callable</span><span class="p">[[</span><span class="n">RequestLimit</span><span class="p">],</span> <span class="n">flask</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Response</span> <span class="o">|</span> <span class="kc">None</span><span class="p">])</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">cost</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">meta_limits</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="n">MetaLimit</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RouteLimit</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        decorator to be applied to multiple routes sharing the same rate limit.</span>
+
+<span class="sd">        :param limit_value: rate limit string or a callable that returns a string.</span>
+<span class="sd">         :ref:`ratelimit-string` for more details.</span>
+<span class="sd">        :param scope: a string or callable that returns a string for defining the rate limiting scope.</span>
+<span class="sd">        :param key_func: function/lambda to extract the unique identifier for the rate limit.</span>
+<span class="sd">        :param per_method: whether the limit is sub categorized into the http method of the request.</span>
+<span class="sd">        :param methods: if specified, only the methods in this list will be rate limited</span>
+<span class="sd">         (default: ``None``).</span>
+<span class="sd">        :param error_message: string (or callable that returns one) to override the error message</span>
+<span class="sd">         used in the response.</span>
+<span class="sd">        :param function exempt_when: function/lambda used to decide if the rate limit should skipped.</span>
+<span class="sd">        :param override_defaults: whether the decorated limit overrides the default limits.</span>
+<span class="sd">         (default: ``True``)</span>
+
+<span class="sd">         .. note:: When used with a :class:`~flask.Blueprint` the meaning</span>
+<span class="sd">            of the parameter extends to any parents the blueprint instance is</span>
+<span class="sd">            registered under. For more details see :ref:`recipes:nested blueprints`</span>
+<span class="sd">        :param deduct_when: a function that receives the current :class:`flask.Response` object and</span>
+<span class="sd">         returns True/False to decide if a deduction should be done from the rate limit</span>
+<span class="sd">        :param on_breach: a function that will be called when this limit is breached.</span>
+<span class="sd">         If the function returns an instance of :class:`flask.Response` that will be the response</span>
+<span class="sd">         embedded into the :exc:`RateLimitExceeded` exception raised.</span>
+<span class="sd">        :param cost: The cost of a hit or a function that takes no parameters and returns the cost</span>
+<span class="sd">         as an integer (default: ``1``).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="n">RouteLimit</span><span class="p">(</span>
+            <span class="n">limit_provider</span><span class="o">=</span><span class="n">limit_value</span><span class="p">,</span>
+            <span class="n">limiter</span><span class="o">=</span><span class="bp">self</span><span class="p">,</span>
+            <span class="n">key_function</span><span class="o">=</span><span class="n">key_func</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key_func</span><span class="p">,</span>
+            <span class="n">shared</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">scope</span><span class="o">=</span><span class="n">scope</span><span class="p">,</span>
+            <span class="n">per_method</span><span class="o">=</span><span class="n">per_method</span><span class="p">,</span>
+            <span class="n">methods</span><span class="o">=</span><span class="n">methods</span><span class="p">,</span>
+            <span class="n">error_message</span><span class="o">=</span><span class="n">error_message</span><span class="p">,</span>
+            <span class="n">exempt_when</span><span class="o">=</span><span class="n">exempt_when</span><span class="p">,</span>
+            <span class="n">override_defaults</span><span class="o">=</span><span class="n">override_defaults</span><span class="p">,</span>
+            <span class="n">deduct_when</span><span class="o">=</span><span class="n">deduct_when</span><span class="p">,</span>
+            <span class="n">on_breach</span><span class="o">=</span><span class="n">on_breach</span><span class="p">,</span>
+            <span class="n">cost</span><span class="o">=</span><span class="n">cost</span><span class="p">,</span>
+            <span class="n">meta_limits</span><span class="o">=</span><span class="n">meta_limits</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">exempt</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">obj</span><span class="p">:</span> <span class="n">flask</span><span class="o">.</span><span class="n">Blueprint</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">flags</span><span class="p">:</span> <span class="n">ExemptionScope</span> <span class="o">=</span> <span class="n">ExemptionScope</span><span class="o">.</span><span class="n">APPLICATION</span>
+        <span class="o">|</span> <span class="n">ExemptionScope</span><span class="o">.</span><span class="n">DEFAULT</span>
+        <span class="o">|</span> <span class="n">ExemptionScope</span><span class="o">.</span><span class="n">META</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">flask</span><span class="o">.</span><span class="n">Blueprint</span><span class="p">:</span> <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">exempt</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">obj</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">R</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">flags</span><span class="p">:</span> <span class="n">ExemptionScope</span> <span class="o">=</span> <span class="n">ExemptionScope</span><span class="o">.</span><span class="n">APPLICATION</span>
+        <span class="o">|</span> <span class="n">ExemptionScope</span><span class="o">.</span><span class="n">DEFAULT</span>
+        <span class="o">|</span> <span class="n">ExemptionScope</span><span class="o">.</span><span class="n">META</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">R</span><span class="p">]:</span> <span class="o">...</span>
+
+    <span class="nd">@overload</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">exempt</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">flags</span><span class="p">:</span> <span class="n">ExemptionScope</span> <span class="o">=</span> <span class="n">ExemptionScope</span><span class="o">.</span><span class="n">APPLICATION</span>
+        <span class="o">|</span> <span class="n">ExemptionScope</span><span class="o">.</span><span class="n">DEFAULT</span>
+        <span class="o">|</span> <span class="n">ExemptionScope</span><span class="o">.</span><span class="n">META</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span>
+        <span class="n">Callable</span><span class="p">[[</span><span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">R</span><span class="p">]],</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">R</span><span class="p">]]</span> <span class="o">|</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">flask</span><span class="o">.</span><span class="n">Blueprint</span><span class="p">],</span> <span class="n">flask</span><span class="o">.</span><span class="n">Blueprint</span><span class="p">]</span>
+    <span class="p">):</span> <span class="o">...</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">exempt</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">obj</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">R</span><span class="p">]</span> <span class="o">|</span> <span class="n">flask</span><span class="o">.</span><span class="n">Blueprint</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">flags</span><span class="p">:</span> <span class="n">ExemptionScope</span> <span class="o">=</span> <span class="n">ExemptionScope</span><span class="o">.</span><span class="n">APPLICATION</span>
+        <span class="o">|</span> <span class="n">ExemptionScope</span><span class="o">.</span><span class="n">DEFAULT</span>
+        <span class="o">|</span> <span class="n">ExemptionScope</span><span class="o">.</span><span class="n">META</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span>
+        <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">R</span><span class="p">]</span>
+        <span class="o">|</span> <span class="n">flask</span><span class="o">.</span><span class="n">Blueprint</span>
+        <span class="o">|</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">R</span><span class="p">]],</span> <span class="n">Callable</span><span class="p">[</span><span class="n">P</span><span class="p">,</span> <span class="n">R</span><span class="p">]]</span>
+        <span class="o">|</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">flask</span><span class="o">.</span><span class="n">Blueprint</span><span class="p">],</span> <span class="n">flask</span><span class="o">.</span><span class="n">Blueprint</span><span class="p">]</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Mark a view function or all views in a blueprint as exempt from rate limits.</span>
+
+<span class="sd">        :param obj: view function or blueprint to mark as exempt.</span>
+<span class="sd">        :param flags: Controls the scope of the exemption. By default application wide limits,</span>
+<span class="sd">         defaults configured on the extension and meta limits are opted out of. Additional flags</span>
+<span class="sd">         can be used to control the behavior when :paramref:`obj` is a Blueprint that is nested</span>
+<span class="sd">         under another Blueprint or has other Blueprints nested under it</span>
+<span class="sd">         (See :ref:`recipes:nested blueprints`)</span>
+
+<span class="sd">        The method can be used either as a decorator without any arguments (the default</span>
+<span class="sd">        flags will apply and the route will be exempt from default and application limits::</span>
+
+<span class="sd">            @app.route(&quot;...&quot;)</span>
+<span class="sd">            @limiter.exempt</span>
+<span class="sd">            def route(...):</span>
+<span class="sd">               ...</span>
+
+<span class="sd">        Specific exemption flags can be provided at decoration time::</span>
+
+<span class="sd">            @app.route(&quot;...&quot;)</span>
+<span class="sd">            @limiter.exempt(flags=ExemptionScope.APPLICATION)</span>
+<span class="sd">            def route(...):</span>
+<span class="sd">                ...</span>
+
+<span class="sd">        If an entire blueprint (i.e. all routes under it) are to be exempted the method can be</span>
+<span class="sd">        called with the blueprint as the first parameter and any additional flags::</span>
+
+<span class="sd">            bp = Blueprint(...)</span>
+<span class="sd">            limiter.exempt(bp)</span>
+<span class="sd">            limiter.exempt(</span>
+<span class="sd">                bp,</span>
+<span class="sd">                flags=ExemptionScope.DEFAULT|ExemptionScope.APPLICATION|ExemptionScope.ANCESTORS</span>
+<span class="sd">            )</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">flask</span><span class="o">.</span><span class="n">Blueprint</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span><span class="o">.</span><span class="n">add_blueprint_exemption</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">flags</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">obj</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span><span class="o">.</span><span class="n">add_route_exemption</span><span class="p">(</span><span class="n">get_qualified_name</span><span class="p">(</span><span class="n">obj</span><span class="p">),</span> <span class="n">flags</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">exempt</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">flags</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">obj</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">request_filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">bool</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">bool</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Decorator to mark a function as a filter to be executed to check if the request is exempt</span>
+<span class="sd">        from rate limiting.</span>
+
+<span class="sd">        :param fn: The function will be called before evaluating any rate limits to decide whether</span>
+<span class="sd">         to perform rate limit or skip it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_request_filters</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fn</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__configure_fallbacks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">:</span> <span class="n">flask</span><span class="o">.</span><span class="n">Flask</span><span class="p">,</span> <span class="n">strategy</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span>
+        <span class="n">fallback_enabled</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">IN_MEMORY_FALLBACK_ENABLED</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">fallback_limits</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ConfigVars</span><span class="o">.</span><span class="n">IN_MEMORY_FALLBACK</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_in_memory_fallback</span> <span class="ow">and</span> <span class="n">fallback_limits</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_in_memory_fallback</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">Limit</span><span class="p">(</span>
+                    <span class="n">limit_provider</span><span class="o">=</span><span class="n">fallback_limits</span><span class="p">,</span>
+                    <span class="n">key_function</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_key_func</span><span class="p">,</span>
+                    <span class="n">scope</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">per_method</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">cost</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">bind</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+            <span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_in_memory_fallback_enabled</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_in_memory_fallback_enabled</span> <span class="o">=</span> <span class="n">fallback_enabled</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_in_memory_fallback</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_in_memory_fallback_enabled</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fallback_storage</span> <span class="o">=</span> <span class="n">MemoryStorage</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fallback_limiter</span> <span class="o">=</span> <span class="n">STRATEGIES</span><span class="p">[</span><span class="n">strategy</span><span class="p">](</span><span class="bp">self</span><span class="o">.</span><span class="n">_fallback_storage</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__should_check_backend</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__check_backend_count</span> <span class="o">&gt;</span> <span class="n">MAX_BACKEND_CHECKS</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__check_backend_count</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">__last_check_backend</span> <span class="o">&gt;</span> <span class="nb">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">__check_backend_count</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__last_check_backend</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__check_backend_count</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        resets the storage if it supports being reset</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Storage has been reset and all limits cleared&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">NotImplementedError</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;This storage type does not support being reset&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">storage</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Storage</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The backend storage configured for the rate limiter</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">limiter</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RateLimiter</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Instance of the rate limiting strategy used for performing rate limiting.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage_dead</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_in_memory_fallback_enabled</span><span class="p">:</span>
+            <span class="n">limiter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fallback_limiter</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">limiter</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_limiter</span>
+        <span class="k">assert</span> <span class="n">limiter</span>
+
+        <span class="k">return</span> <span class="n">limiter</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">current_limit</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RequestLimit</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get details for the most relevant rate limit used in this request.</span>
+
+<span class="sd">        In a scenario where multiple rate limits are active for a single request and none are</span>
+<span class="sd">        breached, the rate limit which applies to the smallest time window will be returned.</span>
+
+<span class="sd">        .. important:: The value of ``remaining`` in :class:`RequestLimit` is after</span>
+<span class="sd">           deduction for the current request.</span>
+
+
+<span class="sd">        For example::</span>
+
+<span class="sd">            @limit(&quot;1/second&quot;)</span>
+<span class="sd">            @limit(&quot;60/minute&quot;)</span>
+<span class="sd">            @limit(&quot;2/day&quot;)</span>
+<span class="sd">            def route(...):</span>
+<span class="sd">                ...</span>
+
+<span class="sd">        - Request 1 at ``t=0`` (no breach): this will return the details for for ``1/second``</span>
+<span class="sd">        - Request 2 at ``t=1`` (no breach): it will still return the details for ``1/second``</span>
+<span class="sd">        - Request 3 at ``t=2`` (breach): it will return the details for ``2/day``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">view_rate_limit</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">current_limits</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">RequestLimit</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get a list of all rate limits that were applicable and evaluated</span>
+<span class="sd">        within the context of this request.</span>
+
+<span class="sd">        The limits are returned in a sorted order by smallest window size first.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">view_rate_limits</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">identify_request</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the identity of the request (by default this is the :attr:`flask.Request.endpoint`</span>
+<span class="sd">        associated by the view function that is handling the request). The behavior can be customized</span>
+<span class="sd">        by initializing the extension with a callable argument for</span>
+<span class="sd">        :paramref:`~flask_limiter.Limiter.request_identifier`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">initialized</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">enabled</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request_identifier</span>
+
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request_identifier</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__check_conditional_deductions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">response</span><span class="p">:</span> <span class="n">flask</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">lim</span><span class="p">,</span> <span class="n">args</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">conditional_deductions</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">lim</span><span class="o">.</span><span class="n">deduct_when</span> <span class="ow">and</span> <span class="n">lim</span><span class="o">.</span><span class="n">deduct_when</span><span class="p">(</span><span class="n">response</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">limiter</span><span class="o">.</span><span class="n">hit</span><span class="p">(</span><span class="n">lim</span><span class="o">.</span><span class="n">limit</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">cost</span><span class="o">=</span><span class="n">lim</span><span class="o">.</span><span class="n">deduction_amount</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_swallow_errors</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Failed to deduct rate limit. Swallowing error&quot;</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">err</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__inject_headers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">response</span><span class="p">:</span> <span class="n">flask</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">flask</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__check_conditional_deductions</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+        <span class="n">header_limit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_limit</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">enabled</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_headers_enabled</span> <span class="ow">and</span> <span class="n">header_limit</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_header_mapping</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">reset_at</span> <span class="o">=</span> <span class="n">header_limit</span><span class="o">.</span><span class="n">reset_at</span>
+                <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_header_mapping</span><span class="p">[</span><span class="n">HeaderNames</span><span class="o">.</span><span class="n">LIMIT</span><span class="p">],</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">header_limit</span><span class="o">.</span><span class="n">limit</span><span class="o">.</span><span class="n">amount</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">add</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_header_mapping</span><span class="p">[</span><span class="n">HeaderNames</span><span class="o">.</span><span class="n">REMAINING</span><span class="p">],</span>
+                    <span class="nb">str</span><span class="p">(</span><span class="n">header_limit</span><span class="o">.</span><span class="n">remaining</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_header_mapping</span><span class="p">[</span><span class="n">HeaderNames</span><span class="o">.</span><span class="n">RESET</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">reset_at</span><span class="p">))</span>
+
+                <span class="c1"># response may have an existing retry after</span>
+                <span class="n">existing_retry_after_header</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;Retry-After&quot;</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="n">existing_retry_after_header</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="c1"># might be in http-date format</span>
+                    <span class="n">retry_after</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">parse_date</span><span class="p">(</span>
+                        <span class="n">existing_retry_after_header</span>
+                    <span class="p">)</span>
+
+                    <span class="c1"># parse_date failure returns None</span>
+
+                    <span class="k">if</span> <span class="n">retry_after</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">retry_after</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">existing_retry_after_header</span><span class="p">)</span>
+
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">retry_after</span><span class="p">,</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="p">):</span>
+                        <span class="n">retry_after</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">mktime</span><span class="p">(</span><span class="n">retry_after</span><span class="o">.</span><span class="n">timetuple</span><span class="p">())</span>
+
+                    <span class="n">reset_at</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">retry_after</span><span class="p">),</span> <span class="n">reset_at</span><span class="p">)</span>
+
+                <span class="c1"># set the header instead of using add</span>
+                <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">set</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_header_mapping</span><span class="p">[</span><span class="n">HeaderNames</span><span class="o">.</span><span class="n">RETRY_AFTER</span><span class="p">],</span>
+                    <span class="nb">str</span><span class="p">(</span>
+                        <span class="n">http_date</span><span class="p">(</span><span class="n">reset_at</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_retry_after</span> <span class="o">==</span> <span class="s2">&quot;http-date&quot;</span>
+                        <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">reset_at</span> <span class="o">-</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
+                    <span class="p">),</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># noqa: E722</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_in_memory_fallback_enabled</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage_dead</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="s2">&quot;Rate limit storage unreachable - falling back to in-memory storage&quot;</span>
+                    <span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_storage_dead</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__inject_headers</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_swallow_errors</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span>
+                            <span class="s2">&quot;Failed to update rate limit headers. Swallowing error&quot;</span>
+                        <span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="n">e</span>
+
+        <span class="k">return</span> <span class="n">response</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__check_all_limits_exempt</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">endpoint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span>
+            <span class="ow">not</span> <span class="n">endpoint</span>
+            <span class="ow">or</span> <span class="ow">not</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">enabled</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">initialized</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">endpoint</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;static&quot;</span>
+            <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">fn</span><span class="p">()</span> <span class="k">for</span> <span class="n">fn</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_request_filters</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__filter_limits</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">endpoint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">blueprint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">callable_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">in_middleware</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">RuntimeLimit</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="n">callable_name</span><span class="p">:</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">callable_name</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">view_func</span> <span class="o">=</span> <span class="n">flask</span><span class="o">.</span><span class="n">current_app</span><span class="o">.</span><span class="n">view_functions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">endpoint</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">get_qualified_name</span><span class="p">(</span><span class="n">view_func</span><span class="p">)</span> <span class="k">if</span> <span class="n">view_func</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__check_all_limits_exempt</span><span class="p">(</span><span class="n">endpoint</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="n">marked_for_limiting</span> <span class="o">=</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_marked_for_limiting</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span><span class="o">.</span><span class="n">has_hints</span><span class="p">(</span>
+            <span class="n">endpoint</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
+        <span class="p">)</span>
+        <span class="n">fallback_limits</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage_dead</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fallback_limiter</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">in_middleware</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_marked_for_limiting</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__should_check_backend</span><span class="p">()</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage</span><span class="o">.</span><span class="n">check</span><span class="p">():</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Rate limit storage recovered&quot;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_storage_dead</span> <span class="o">=</span> <span class="kc">False</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">__check_backend_count</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">fallback_limits</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_in_memory_fallback</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">fallback_limits</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">fallback_limits</span>
+
+        <span class="n">defaults</span><span class="p">,</span> <span class="n">decorated</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span><span class="o">.</span><span class="n">resolve_limits</span><span class="p">(</span>
+            <span class="n">flask</span><span class="o">.</span><span class="n">current_app</span><span class="p">,</span>
+            <span class="n">endpoint</span><span class="p">,</span>
+            <span class="n">blueprint</span><span class="p">,</span>
+            <span class="n">name</span><span class="p">,</span>
+            <span class="n">in_middleware</span><span class="p">,</span>
+            <span class="n">marked_for_limiting</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">limits</span> <span class="o">=</span> <span class="n">OrderedSet</span><span class="p">(</span><span class="n">defaults</span><span class="p">)</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">seen_limits</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">seen_limits</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">defaults</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">limits</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">decorated</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__evaluate_limits</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">limits</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">RuntimeLimit</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">failed_limits</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">RuntimeLimit</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">limit_for_header</span><span class="p">:</span> <span class="n">RequestLimit</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">view_limits</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">RequestLimit</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">meta_limits</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">meta_limit</span>
+            <span class="k">for</span> <span class="n">meta_limit</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span>
+                <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_meta_limits</span><span class="p">,</span>
+                <span class="o">*</span><span class="p">[</span><span class="n">limit</span><span class="o">.</span><span class="n">meta_limits</span> <span class="k">for</span> <span class="n">limit</span> <span class="ow">in</span> <span class="n">limits</span> <span class="k">if</span> <span class="n">limit</span><span class="o">.</span><span class="n">meta_limits</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">meta_limit</span><span class="o">.</span><span class="n">is_exempt</span>
+        <span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span>
+            <span class="n">ExemptionScope</span><span class="o">.</span><span class="n">META</span>
+            <span class="o">&amp;</span> <span class="bp">self</span><span class="o">.</span><span class="n">limit_manager</span><span class="o">.</span><span class="n">exemption_scope</span><span class="p">(</span>
+                <span class="n">flask</span><span class="o">.</span><span class="n">current_app</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">flask</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">blueprint</span>
+            <span class="p">)</span>
+        <span class="p">):</span>
+            <span class="k">for</span> <span class="n">lim</span> <span class="ow">in</span> <span class="n">meta_limits</span><span class="p">:</span>
+                <span class="n">limit_key</span><span class="p">,</span> <span class="n">scope</span> <span class="o">=</span> <span class="n">lim</span><span class="o">.</span><span class="n">key_func</span><span class="p">(),</span> <span class="n">lim</span><span class="o">.</span><span class="n">scope_for</span><span class="p">(</span><span class="n">endpoint</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="n">limit_key</span><span class="p">,</span> <span class="n">scope</span><span class="p">]</span>
+                <span class="n">on_breach</span> <span class="o">=</span> <span class="n">lim</span><span class="o">.</span><span class="n">on_breach</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">_on_meta_breach</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">limiter</span><span class="o">.</span><span class="n">test</span><span class="p">(</span><span class="n">lim</span><span class="o">.</span><span class="n">limit</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">cost</span><span class="o">=</span><span class="n">lim</span><span class="o">.</span><span class="n">deduction_amount</span><span class="p">):</span>
+                    <span class="n">breached_meta_limit</span> <span class="o">=</span> <span class="n">RequestLimit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lim</span><span class="o">.</span><span class="n">limit</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="n">lim</span><span class="o">.</span><span class="n">shared</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">view_rate_limit</span> <span class="o">=</span> <span class="n">breached_meta_limit</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">view_rate_limits</span> <span class="o">=</span> <span class="p">[</span><span class="n">breached_meta_limit</span><span class="p">]</span>
+                    <span class="n">meta_breach_response</span> <span class="o">=</span> <span class="kc">None</span>
+
+                    <span class="k">if</span> <span class="n">on_breach</span><span class="p">:</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">cb_response</span> <span class="o">=</span> <span class="n">on_breach</span><span class="p">(</span><span class="n">breached_meta_limit</span><span class="p">)</span>
+
+                            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cb_response</span><span class="p">,</span> <span class="n">flask</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Response</span><span class="p">):</span>
+                                <span class="n">meta_breach_response</span> <span class="o">=</span> <span class="n">cb_response</span>
+                        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>  <span class="c1"># noqa</span>
+                            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_swallow_errors</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span>
+                                    <span class="s2">&quot;on_meta_breach callback failed with error </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">err</span>
+                                <span class="p">)</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="k">raise</span> <span class="n">err</span>
+                    <span class="k">raise</span> <span class="n">RateLimitExceeded</span><span class="p">(</span><span class="n">lim</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="n">meta_breach_response</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">lim</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">limits</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">limit</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">lim</span><span class="o">.</span><span class="n">is_exempt</span> <span class="ow">or</span> <span class="n">lim</span><span class="o">.</span><span class="n">method_exempt</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">limit_scope</span> <span class="o">=</span> <span class="n">lim</span><span class="o">.</span><span class="n">scope_for</span><span class="p">(</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">flask</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">method</span><span class="p">)</span>
+            <span class="n">limit_key</span> <span class="o">=</span> <span class="n">lim</span><span class="o">.</span><span class="n">key_func</span><span class="p">()</span>
+            <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="n">limit_key</span><span class="p">,</span> <span class="n">limit_scope</span><span class="p">]</span>
+            <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{}</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping limit: </span><span class="si">{</span><span class="n">lim</span><span class="o">.</span><span class="n">limit</span><span class="si">}</span><span class="s2">. Empty value found in parameters.&quot;</span><span class="p">)</span>
+
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_key_prefix</span><span class="p">:</span>
+                <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_key_prefix</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">lim</span><span class="o">.</span><span class="n">deduct_when</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">conditional_deductions</span><span class="p">[</span><span class="n">lim</span><span class="p">]</span> <span class="o">=</span> <span class="n">args</span>
+                <span class="n">method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">limiter</span><span class="o">.</span><span class="n">test</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">method</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">limiter</span><span class="o">.</span><span class="n">hit</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;cost&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">lim</span><span class="o">.</span><span class="n">deduction_amount</span>
+
+            <span class="n">request_limit</span> <span class="o">=</span> <span class="n">RequestLimit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">lim</span><span class="o">.</span><span class="n">limit</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="n">lim</span><span class="o">.</span><span class="n">shared</span><span class="p">)</span>
+            <span class="n">view_limits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">request_limit</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">method</span><span class="p">(</span><span class="n">lim</span><span class="o">.</span><span class="n">limit</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="s2">&quot;ratelimit </span><span class="si">%s</span><span class="s2"> (</span><span class="si">%s</span><span class="s2">) exceeded at endpoint: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">lim</span><span class="o">.</span><span class="n">limit</span><span class="p">,</span>
+                    <span class="n">limit_key</span><span class="p">,</span>
+                    <span class="n">limit_scope</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">failed_limits</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">lim</span><span class="p">,</span> <span class="n">args</span><span class="p">))</span>
+                <span class="n">view_limits</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">breached</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">limit_for_header</span> <span class="o">=</span> <span class="n">view_limits</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fail_on_first_breach</span><span class="p">:</span>
+                    <span class="k">break</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">limit_for_header</span> <span class="ow">and</span> <span class="n">view_limits</span><span class="p">:</span>
+            <span class="c1"># Pick a non shared limit over a shared one if possible</span>
+            <span class="c1"># when no rate limit has been hit. This should be the best hint</span>
+            <span class="c1"># for the client.</span>
+            <span class="n">explicit</span> <span class="o">=</span> <span class="p">[</span><span class="n">limit</span> <span class="k">for</span> <span class="n">limit</span> <span class="ow">in</span> <span class="n">view_limits</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">limit</span><span class="o">.</span><span class="n">shared</span><span class="p">]</span>
+            <span class="n">limit_for_header</span> <span class="o">=</span> <span class="n">explicit</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">explicit</span> <span class="k">else</span> <span class="n">view_limits</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">view_rate_limit</span> <span class="o">=</span> <span class="n">limit_for_header</span> <span class="ow">or</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">view_rate_limits</span> <span class="o">=</span> <span class="n">view_limits</span>
+
+        <span class="n">on_breach_response</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">for</span> <span class="n">limit</span> <span class="ow">in</span> <span class="n">failed_limits</span><span class="p">:</span>
+            <span class="n">request_limit</span> <span class="o">=</span> <span class="n">RequestLimit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">limit</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">limit</span><span class="p">,</span> <span class="n">limit</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="kc">True</span><span class="p">,</span> <span class="n">limit</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shared</span><span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="nb">dict</span><span class="o">.</span><span class="n">fromkeys</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_on_breach</span><span class="p">,</span> <span class="n">limit</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">on_breach</span><span class="p">]):</span>
+                <span class="k">if</span> <span class="n">cb</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">cb_response</span> <span class="o">=</span> <span class="n">cb</span><span class="p">(</span><span class="n">request_limit</span><span class="p">)</span>
+
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cb_response</span><span class="p">,</span> <span class="n">flask</span><span class="o">.</span><span class="n">wrappers</span><span class="o">.</span><span class="n">Response</span><span class="p">):</span>
+                            <span class="n">on_breach_response</span> <span class="o">=</span> <span class="n">cb_response</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>  <span class="c1"># noqa</span>
+                        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_swallow_errors</span><span class="p">:</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;on_breach callback failed with error </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">err</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">raise</span> <span class="n">err</span>
+
+        <span class="k">if</span> <span class="n">failed_limits</span><span class="p">:</span>
+            <span class="n">meta_limits</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">meta_limit</span>
+                <span class="k">for</span> <span class="n">meta_limit</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">(</span>
+                    <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_meta_limits</span><span class="p">,</span>
+                    <span class="o">*</span><span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">lim</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">meta_limits</span><span class="p">)</span> <span class="k">for</span> <span class="n">lim</span> <span class="ow">in</span> <span class="n">failed_limits</span> <span class="k">if</span> <span class="n">lim</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">meta_limits</span><span class="p">],</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">meta_limit</span><span class="o">.</span><span class="n">is_exempt</span>
+            <span class="p">]</span>
+            <span class="k">for</span> <span class="n">lim</span> <span class="ow">in</span> <span class="n">meta_limits</span><span class="p">:</span>
+                <span class="n">limit_scope</span> <span class="o">=</span> <span class="n">lim</span><span class="o">.</span><span class="n">scope_for</span><span class="p">(</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">flask</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">method</span><span class="p">)</span>
+                <span class="n">limit_key</span> <span class="o">=</span> <span class="n">lim</span><span class="o">.</span><span class="n">key_func</span><span class="p">()</span>
+                <span class="n">args</span> <span class="o">=</span> <span class="p">[</span><span class="n">limit_key</span><span class="p">,</span> <span class="n">limit_scope</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">limiter</span><span class="o">.</span><span class="n">hit</span><span class="p">(</span><span class="n">lim</span><span class="o">.</span><span class="n">limit</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">RateLimitExceeded</span><span class="p">(</span>
+                <span class="nb">sorted</span><span class="p">(</span><span class="n">failed_limits</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">limit</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span>
+                <span class="n">response</span><span class="o">=</span><span class="n">on_breach_response</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_request_limit</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">callable_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">in_middleware</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">endpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">identify_request</span><span class="p">()</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">all_limits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__filter_limits</span><span class="p">(</span>
+                <span class="n">endpoint</span><span class="p">,</span>
+                <span class="n">flask</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">blueprint</span><span class="p">,</span>
+                <span class="n">callable_name</span><span class="p">,</span>
+                <span class="n">in_middleware</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__evaluate_limits</span><span class="p">(</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">all_limits</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">RateLimitExceeded</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">e</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_in_memory_fallback_enabled</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_storage_dead</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Rate limit storage unreachable - falling back to in-memory storage&quot;</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_storage_dead</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">seen_limits</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_check_request_limit</span><span class="p">(</span><span class="n">callable_name</span><span class="o">=</span><span class="n">callable_name</span><span class="p">,</span> <span class="n">in_middleware</span><span class="o">=</span><span class="n">in_middleware</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_swallow_errors</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">exception</span><span class="p">(</span><span class="s2">&quot;Failed to rate limit. Swallowing error&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="n">e</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__release_context</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_</span><span class="p">:</span> <span class="ne">BaseException</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">reset</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Prawa zastrzeżone 2026, Dobrawa Rumszewicz.</p>
+  </div>
+
+  Zbudowano w <a href="https://www.sphinx-doc.org/">Sphinx</a> używając
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    dostarczone przez <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

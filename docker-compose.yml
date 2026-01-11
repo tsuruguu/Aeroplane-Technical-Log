@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:18
+    container_name: aeroplane_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./postgres_localhost-2026_01_11_16_56_10-dump.sql:/docker-entrypoint-initdb.d/init.sql
+
+  web:
+    build: .
+    container_name: aeroplane_web
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      SECRET_KEY: ${SECRET_KEY}
+      LOG_SECRET_KEY: ${LOG_SECRET_KEY}
+    depends_on:
+      - db
+    volumes:
+      - .:/app # Opcjonalnie do developmentu
+      - ./logs:/app/logs 
+
+volumes:
+  postgres_data:

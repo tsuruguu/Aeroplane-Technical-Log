@@ -1,18 +1,37 @@
 """
-Moduł raportów i statystyk.
+Moduł raportów i statystyk z rozbudowanym audytem dostępu.
 
 Generuje zestawienia finansowe, rankingi nalotów pilotów, statystyki szybowców
 oraz umożliwia eksport tych danych do plików CSV.
+
+**System Logowania Audytowego (Data Privacy Audit)**
+Wszystkie operacje eksportu są traktowane jako zdarzenia wysokiego ryzyka i logowane
+do kanału `security` z uwzględnieniem filtrów RODO i IP sprawcy.
+
+Przykład logu eksportu finansowego (JSON):
+{
+    "timestamp": "2026-01-11T20:45:12.123Z",
+    "level": "INFO",
+    "event": "FINANCIAL_DATA_EXPORT",
+    "user": "admin_jan",
+    "report": "saldo_pilota.csv",
+    "src_ip": "192.168.1.100",
+    "signature": "df8a92..."
+}
 """
 
 import io
 import csv
+import logging
 from flask import Blueprint, render_template, Response, request
 from flask_login import login_required, current_user
 from sqlalchemy import text
-from database import db
-
+# from database import db
+from extensions import db
 reports_bp = Blueprint('reports', __name__)
+app_logger = logging.getLogger("application")
+security_logger = logging.getLogger("security")
+error_logger = logging.getLogger("error")
 
 @reports_bp.route('/raporty')
 @login_required
@@ -33,6 +52,12 @@ def dashboard():
         dynamicznie wylicza koszt każdego lotu w oparciu o cennik szybowca, rodzaj startu
         oraz rolę pilota (np. podział kosztów 50/50 w locie koleżeńskim).
     """
+    app_logger.info("ACCESS_REPORTS_DASHBOARD", extra={
+        'event': 'ANALYTICS_VIEW',
+        'user': current_user.login,
+        'src_ip': request.remote_addr
+    })
+
     if current_user.rola == 'admin':
         sql_piloci = text("""
                           SELECT id_pilot, imie, nazwisko, licencja, nalot_h, pokazywac_dane, pokazywac_licencje
@@ -115,6 +140,13 @@ def export_piloci_csv():
           Dzięki temu zachowana jest transparentność rankingu (widać, że ktoś ma X godzin),
           ale chroniona jest tożsamość osób dbających o prywatność.
     """
+    security_logger.info("EXPORT_PILOT_RANKING", extra={
+        'event': 'DATA_EXPORT_PII',
+        'user': current_user.login,
+        'src_ip': request.remote_addr,
+        'pii_masked': current_user.rola != 'admin'
+    })
+
     if current_user.rola == 'admin':
         sql = text("""
                    SELECT imie, nazwisko, licencja, nalot_h, true as pokazywac_dane, true as pokazywac_licencje
@@ -159,6 +191,13 @@ def export_finanse_csv():
         Zwykły pilot może pobrać TYLKO swoje operacje (`WHERE id_pilot = :p_id`).
         Próba manipulacji ID w zapytaniu jest niemożliwa dzięki pobieraniu ID z bezpiecznej sesji (`current_user`).
     """
+    security_logger.warning("EXPORT_FINANCIAL_RECORDS", extra={
+        'event': 'DATA_EXPORT_FINANCIAL',
+        'user': current_user.login,
+        'src_ip': request.remote_addr,
+        'admin_mode': current_user.rola == 'admin'
+    })
+
     query_params = {'p_id': current_user.id_pilot}
 
     if current_user.rola == 'admin':
@@ -214,6 +253,13 @@ def export_szybowce_csv():
         Returns:
             Response: Plik `nalot_szybowcow.csv`.
     """
+    app_logger.info("EXPORT_AIRCRAFT_STATS", extra={
+        'event': 'DATA_EXPORT',
+        'user': current_user.login,
+        'src_ip': request.remote_addr,
+        'report_type': 'AIRCRAFT_UTILIZATION'
+    })
+
     sql = text("SELECT * FROM pdt_core.v_szybowiec_nalot ORDER BY CAST(nalot_calk_h AS FLOAT) DESC")
     res = db.session.execute(sql).fetchall()
 
@@ -242,6 +288,13 @@ def export_saldo_csv():
         Opiera się na widoku `pdt_rpt.v_saldo_pilota`, który gwarantuje, że saldo w CSV
         jest identyczne z tym wyświetlanym na stronie (Single Source of Truth).
     """
+    security_logger.info("EXPORT_USER_BALANCES", extra={
+        'event': 'DATA_EXPORT_FINANCIAL',
+        'user': current_user.login,
+        'src_ip': request.remote_addr,
+        'target_scope': 'ALL' if current_user.rola == 'admin' else 'SELF'
+    })
+
     if current_user.rola == 'admin':
         sql = text("SELECT * FROM pdt_rpt.v_saldo_pilota ORDER BY saldo ASC")
         res = db.session.execute(sql).fetchall()

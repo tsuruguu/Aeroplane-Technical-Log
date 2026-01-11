@@ -1,20 +1,41 @@
 """
-Moduł mechanika (CAMO).
+Moduł mechanika (CAMO) z pełnym nadzorem technicznym.
 
 Obsługuje Panel Techniczny: statusy resursów szybowców, zgłaszanie i obsługę usterek,
 dodawanie przeglądów okresowych oraz dokumentację zdjęciową napraw.
+
+**System Logowania Audytowego (Maintenance & Safety Audit)**
+Logi w tym module dokumentują krytyczne zmiany w statusie zdatności floty.
+Szczególny nacisk położono na audyt przesyłania plików oraz resetowanie liczników przeglądów.
+
+Przykład logu obsługi technicznej (JSON):
+{
+    "timestamp": "2026-01-11T20:15:30.987Z",
+    "level": "WARNING",
+    "event": "MAINTENANCE_RELEASE",
+    "mechanic": "head_mechanic_01",
+    "aircraft_id": 5,
+    "inspection_type": "Annual",
+    "src_ip": "10.0.1.20",
+    "signature": "b7a2d3..."
+}
 """
 
 import csv
 import io
 import os
 import uuid
+import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, Response
 from flask_login import login_required, current_user
 from sqlalchemy import text
-from database import db
+# from database import db
+from extensions import db
 
 mechanic_bp = Blueprint('mechanic', __name__)
+app_logger = logging.getLogger("application")
+security_logger = logging.getLogger("security")
+error_logger = logging.getLogger("error")
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
@@ -64,6 +85,12 @@ def index():
         Wydajność: Zapytania agregujące są wykonywane w pętli dla floty. Przy skali >100 statków
         wymagałoby to optymalizacji do pojedynczego zapytania z GROUP BY.
     """
+    app_logger.info("ACCESS_CAMO_DASHBOARD", extra={
+        'event': 'MAINTENANCE_VIEW',
+        'user': current_user.login,
+        'src_ip': request.remote_addr
+    })
+
     szybowce_db = db.session.execute(text("""
                                           SELECT *
                                           FROM pdt_core.v_szybowiec_status
@@ -152,6 +179,14 @@ def glider_details(id_szybowiec):
         Args:
             id_szybowiec (int): Unikalny identyfikator szybowca w bazie.
     """
+
+    app_logger.info("VIEW_GLIDER_LOGBOOK", extra={
+        'event': 'DATA_READ',
+        'user': current_user.login,
+        'glider_id': id_szybowiec,
+        'src_ip': request.remote_addr
+    })
+
     szybowiec = db.session.execute(text("""
         SELECT s.*, vn.nalot_calk_h 
         FROM pdt_core.szybowiec s
@@ -202,6 +237,13 @@ def export_fleet_csv():
         Returns:
             Response: Plik `flota_status.csv` gotowy do pobrania.
     """
+    security_logger.info("FLEET_STATUS_EXPORT", extra={
+        'event': 'DATA_EXPORT',
+        'user': current_user.login,
+        'src_ip': request.remote_addr,
+        'report_type': 'FLEET_STATUS'
+    })
+
     data = db.session.execute(text("""
                                    SELECT s.znak_rej,
                                           s.typ,
@@ -245,6 +287,13 @@ def export_issues_csv():
         Returns:
             Response: Plik `otwarte_usterki.csv`.
     """
+    security_logger.info("EXPORT_MAINTENANCE_TASKS", extra={
+        'event': 'DATA_EXPORT',
+        'user': current_user.login,
+        'src_ip': request.remote_addr,
+        'scope': 'OPEN_ISSUES'
+    })
+
     data = db.session.execute(text("""
                                    SELECT u.id_usterka, s.znak_rej, u.status, u.opis, u.created_at
                                    FROM pdt_core.usterka u
@@ -282,6 +331,13 @@ def export_closed_issues_csv():
         Returns:
             Response: Plik `archiwum_napraw.csv`.
     """
+    security_logger.info("EXPORT_REPAIR_ARCHIVE", extra={
+        'event': 'DATA_EXPORT',
+        'user': current_user.login,
+        'src_ip': request.remote_addr,
+        'scope': 'CLOSED_ISSUES'
+    })
+
     data = db.session.execute(text("""
                                    SELECT u.id_usterka,
                                           s.znak_rej,
@@ -359,6 +415,12 @@ def details(id_usterka):
 
     if request.method == 'POST':
         if current_user.rola not in ['admin', 'mechanik']:
+            security_logger.warning("UNAUTHORIZED_MAINTENANCE_ATTEMPT", extra={
+                'event': 'ACCESS_VIOLATION',
+                'user': current_user.login,
+                'issue_id': id_usterka,
+                'src_ip': request.remote_addr
+            })
             flash('Brak uprawnień.', 'danger')
             return redirect(url_for('mechanic.index'))
 
@@ -368,6 +430,14 @@ def details(id_usterka):
             nowy_status = request.form.get('status')
             opis_naprawy = request.form.get('opis_prac')
             czesci = request.form.get('czesci')
+
+            app_logger.info("ISSUE_STATUS_UPDATE", extra={
+                'event': 'MAINTENANCE_WORKFLOW',
+                'mechanic': current_user.login,
+                'issue_id': id_usterka,
+                'new_status': nowy_status,
+                'src_ip': request.remote_addr
+            })
 
             if opis_naprawy:
                 db.session.execute(text("""
@@ -403,6 +473,15 @@ def details(id_usterka):
                     path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
                     file.save(path)
 
+                    security_logger.info("FILE_UPLOAD_MAINTENANCE", extra={
+                        'event': 'FILE_UPLOAD',
+                        'user': current_user.login,
+                        'original_name': file.filename,
+                        'stored_name': unique_filename,
+                        'issue_id': id_usterka,
+                        'src_ip': request.remote_addr
+                    })
+
                     db.session.execute(text("""
                                             UPDATE pdt_core.usterka
                                             SET zdjecie_sciezka = :p,
@@ -414,6 +493,14 @@ def details(id_usterka):
 
                     db.session.commit()
                     flash('Zdjęcie dodano pomyślnie.', 'success')
+                else:
+                    security_logger.error("MALICIOUS_UPLOAD_ATTEMPT", extra={
+                        'event': 'UPLOAD_FAILURE_SECURITY',
+                        'user': current_user.login,
+                        'filename': file.filename if file else "None",
+                        'src_ip': request.remote_addr
+                    })
+                    flash('Nieprawidłowy plik.', 'danger')
 
         return redirect(url_for('mechanic.details', id_usterka=id_usterka))
 
@@ -444,6 +531,15 @@ def add_inspection():
     data = request.form.get('data_przegladu')
     typ = request.form.get('typ')
     uwagi = request.form.get('uwagi')
+
+    app_logger.warning("MAINTENANCE_RELEASE_RECORDED", extra={
+        'event': 'AIRWORTHINESS_DIRECTIVE',
+        'mechanic': current_user.login,
+        'aircraft_id': id_szybowiec,
+        'inspection_type': typ,
+        'src_ip': request.remote_addr,
+        'message': f"Zatwierdzono przegląd typu {typ} - reset resursów"
+    })
 
     db.session.execute(text("""
                             INSERT INTO pdt_core.przeglad (id_szybowiec, data_przegladu, typ, uwagi, id_mechanik)

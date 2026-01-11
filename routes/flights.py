@@ -1,20 +1,40 @@
 """
-Moduł obsługi lotów (Flights).
+Moduł obsługi lotów (Flights) z pełnym audytem operacyjnym.
 
 Zarządza głównym dziennikiem lotów: wyświetlaniem listy, filtrowaniem,
 dodawaniem, edycją i usuwaniem (soft-delete) wpisów o lotach.
 Obsługuje również eksport danych do CSV.
+
+**System Logowania Audytowego (Aviation Compliance)**
+Każda operacja na dzienniku lotów jest logowana w formacie strukturyzowanym JSON.
+Zmiany w nalotach i usterkach są traktowane jako zdarzenia krytyczne dla bezpieczeństwa operacji.
+
+Przykład logu dodania lotu (JSON):
+{
+    "timestamp": "2026-01-11T19:45:00.123Z",
+    "level": "INFO",
+    "event": "FLIGHT_RECORD_CREATED",
+    "user": "pilot_kowalski",
+    "flight_id": 1250,
+    "aircraft": "SP-ABC",
+    "src_ip": "10.0.0.5",
+    "signature": "f29a88..."
+}
 """
 
 import io
 import csv
+import logging
 import math
 from flask import Blueprint, render_template, request, redirect, url_for, flash, Response
 from flask_login import login_required, current_user
 from sqlalchemy import text
-from database import db
-
+# from database import db
+from extensions import db
 flights_bp = Blueprint('flights', __name__)
+app_logger = logging.getLogger("application")
+security_logger = logging.getLogger("security")
+error_logger = logging.getLogger("error")
 
 
 def get_filtered_query_parts(args, user):
@@ -146,6 +166,13 @@ def index():
         Returns:
             str: Wyrenderowany szablon HTML listy lotów z kontekstem filtrów i paginacji.
     """
+    app_logger.info("ACCESS_FLIGHT_LOG", extra={
+        'event': 'DATA_READ',
+        'user': current_user.login,
+        'src_ip': request.remote_addr,
+        'page': request.args.get('page', 1)
+    })
+
     if current_user.rola in ['admin', 'mechanik']:
         sql_pilots = text("SELECT id_pilot, imie, nazwisko, licencja FROM pdt_core.pilot ORDER BY nazwisko")
         all_pilots = db.session.execute(sql_pilots).fetchall()
@@ -228,6 +255,13 @@ def export_csv():
         Returns:
             Response: Strumień bajtów z plikiem CSV (kodowanie UTF-8-SIG dla Excela).
     """
+    security_logger.info("DATA_EXPORT_CSV", extra={
+        'event': 'DATA_EXFILTRATION_AUTHORIZED',
+        'user': current_user.login,
+        'src_ip': request.remote_addr,
+        'filters': str(request.args.to_dict())
+    })
+
     where_clause, params = get_filtered_query_parts(request.args, current_user)
     limit_last_n = request.args.get('limit_last_n', type=int)
 
@@ -237,7 +271,6 @@ def export_csv():
         sql += f" LIMIT {limit_last_n}"
 
     result = db.session.execute(text(sql), params).fetchall()
-
     output = io.StringIO()
     writer = csv.writer(output, delimiter=';')
 
@@ -344,6 +377,13 @@ def add_flight():
                                          "uw": uwagi, "nadzor": id_nadzorujacy
                                      })
             new_id_lot = res.fetchone()[0]
+            app_logger.info("FLIGHT_CREATED", extra={
+                'event': 'FLIGHT_RECORD_ADD',
+                'user': current_user.login,
+                'flight_id': new_id_lot,
+                'glider_id': request.form.get('id_szybowiec'),
+                'src_ip': request.remote_addr
+            })
 
             if usterka and usterka.strip():
                 db.session.execute(text("""
@@ -367,11 +407,8 @@ def add_flight():
             return redirect(url_for('flights.index'))
         except Exception as e:
             db.session.rollback()
-            error_msg = str(e)
-            if 'NARUSZENIE BEZPIECZEŃSTWA' in error_msg:
-                flash(error_msg.split('CONTEXT:')[0].replace('P0001', ''), 'danger')
-            # else:
-            #     flash(f'Błąd bazy danych: {error_msg}', 'danger')
+            error_logger.error(f"FLIGHT_CREATION_FAILED: {str(e)}", exc_info=True, extra={'user': current_user.login})
+            flash('Wystąpił błąd podczas zapisu lotu.', 'danger')
 
     szybowce = db.session.execute(text("SELECT * FROM pdt_core.v_aktywne_szybowce")).fetchall()
     lotniska = db.session.execute(text("SELECT * FROM pdt_core.lotnisko WHERE deleted_at IS NULL")).fetchall()
@@ -413,6 +450,12 @@ def edit_flight(id_lot):
 
     is_owner = current_user.id_pilot in [lot.id_p1, lot.id_p2]
     if current_user.rola != 'admin' and not is_owner:
+        security_logger.warning("UNAUTHORIZED_FLIGHT_EDIT_ATTEMPT", extra={
+            'event': 'ACCESS_VIOLATION',
+            'user': current_user.login,
+            'flight_id': id_lot,
+            'src_ip': request.remote_addr
+        })
         flash('Nie masz uprawnień do edycji tego lotu.', 'danger')
         return redirect(url_for('flights.index'))
 
@@ -430,6 +473,14 @@ def edit_flight(id_lot):
         p1_rola = request.form.get('rola_1')
         p2_id = request.form.get('id_pilot_2')
         p2_rola = request.form.get('rola_2')
+
+        app_logger.warning("FLIGHT_MODIFIED", extra={
+            'event': 'FLIGHT_RECORD_UPDATE',
+            'user': current_user.login,
+            'flight_id': id_lot,
+            'src_ip': request.remote_addr,
+            'changes': str(request.form.to_dict(flat=True))
+        })
 
         if p1_rola == 'UCZEN' and not p2_id and not id_nadzorujacy:
             flash('BŁĄD: Uczeń lecący samodzielnie musi mieć nadzór z ziemi!', 'danger')
@@ -480,11 +531,7 @@ def edit_flight(id_lot):
 
         except Exception as e:
             db.session.rollback()
-            error_msg = str(e)
-            if 'NARUSZENIE BEZPIECZEŃSTWA' in error_msg:
-                flash(error_msg.split('CONTEXT:')[0].replace('P0001', ''), 'danger')
-            # else:
-            #     flash(f'Błąd zapisu: {error_msg}', 'danger')
+            error_logger.error(f"FLIGHT_UPDATE_FAILED: {id_lot}, error: {str(e)}", exc_info=True)
             return redirect(url_for('flights.edit_flight', id_lot=id_lot))
 
     piloci_lotu = db.session.execute(text("SELECT * FROM pdt_core.lot_pilot WHERE id_lot = :id"),
@@ -526,14 +573,26 @@ def delete_flight(id_lot):
         return redirect(url_for('flights.index'))
     is_owner = current_user.id_pilot in [lot.id_p1, lot.id_p2]
     if current_user.rola != 'admin' and not is_owner:
+        security_logger.critical("UNAUTHORIZED_FLIGHT_DELETE_ATTEMPT", extra={
+            'event': 'ACCESS_VIOLATION',
+            'user': current_user.login,
+            'flight_id': id_lot,
+            'src_ip': request.remote_addr
+        })
         flash('Nie masz uprawnień do usunięcia tego lotu.', 'danger')
         return redirect(url_for('flights.index'))
     try:
+        app_logger.warning("FLIGHT_SOFT_DELETED", extra={
+            'event': 'FLIGHT_RECORD_DELETE',
+            'user': current_user.login,
+            'flight_id': id_lot,
+            'src_ip': request.remote_addr
+        })
         db.session.execute(text("UPDATE pdt_core.lot SET deleted_at = NOW() WHERE id_lot = :id"), {"id": id_lot})
         db.session.execute(text("UPDATE pdt_core.usterka SET deleted_at = NOW() WHERE id_lot = :id"), {"id": id_lot})
         db.session.commit()
         flash(f'Lot #{id_lot} został pomyślnie usunięty.', 'success')
     except Exception as e:
         db.session.rollback()
-        # flash(f'Wystąpił błąd podczas usuwania: {str(e)}', 'danger')
+        error_logger.error(f"FLIGHT_DELETE_FAILED: {id_lot}, error: {str(e)}")
     return redirect(url_for('flights.index'))

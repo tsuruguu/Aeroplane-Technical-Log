@@ -1,12 +1,27 @@
 """
-Moduł uwierzytelniania (Authentication).
+Moduł uwierzytelniania (Authentication) z systemem Audit Trail.
 
 Obsługuje logowanie, wylogowywanie, rejestrację nowych użytkowników
-oraz zarządzanie profilem (zmiana hasła, ustawienia RODO).
-"""
+oraz zarządzanie profilem.
 
+**System Logowania i Audytu (Cybersecurity Compliance)**
+Wszystkie zdarzenia w tym module są logowane do kanału `security` w formacie JSON
+z cyfrowym podpisem HMAC-SHA256, co zapewnia integralność logów (nienaruszalność).
+
+Przykład logu bezpieczeństwa (JSON):
+{
+    "timestamp": "2026-01-11T18:20:01.123Z",
+    "level": "WARNING",
+    "event": "AUTH_FAILURE",
+    "user_attempted": "admin",
+    "src_ip": "192.168.1.15",
+    "message": "Błędna próba logowania: nieprawidłowe hasło",
+    "signature": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
+"""
 import secrets
 import string
+import logging
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
@@ -14,11 +29,14 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from extensions import limiter
 from models import Uzytkownik
-from database import db
+# from database import db
+from extensions import db
 from sqlalchemy import text
 import re
 
 auth_bp = Blueprint('auth', __name__)
+security_logger = logging.getLogger("security")
+app_logger = logging.getLogger("application")
 
 @auth_bp.route('/login', methods=['GET','POST'])
 @limiter.limit("5 per minute")
@@ -50,11 +68,8 @@ def login():
     if request.method == 'POST':
         login_input = request.form.get('login')
         haslo_input = request.form.get('password')
+        src_ip = request.remote_addr
         user = Uzytkownik.query.filter_by(login=login_input).first()
-
-        print(f"DEBUG: Znaleziono usera: {user}")
-        if user:
-            print(f"DEBUG: Hash w bazie: {user.haslo_hash}")
 
         if user and check_password_hash(user.haslo_hash, haslo_input):
             if user.id_pilot:
@@ -64,15 +79,37 @@ def login():
                 ).scalar()
 
                 if is_deleted is not None:
+                    security_logger.warning("ACCOUNT_LOCKED_ATTEMPT", extra={
+                        'event': 'AUTH_LOCKOUT',
+                        'user': login_input,
+                        'src_ip': src_ip,
+                        'message': 'Próba logowania na konto zablokowane administracyjnie'
+                    })
                     flash('To konto zostało zablokowane przez administratora.', 'danger')
                     return render_template('login.html')
+
             login_user(user)
+            security_logger.info("USER_LOGIN_SUCCESS", extra={
+                'event': 'AUTH_SUCCESS',
+                'user': user.login,
+                'role': user.rola,
+                'src_ip': src_ip,
+                'message': 'Użytkownik zalogowany pomyślnie'
+            })
             flash('Zalogowano pomyślnie!', 'success')
             return redirect(url_for('index'))
         else:
+            security_logger.warning("USER_LOGIN_FAILURE", extra={
+                'event': 'AUTH_FAILURE',
+                'user_attempted': login_input,
+                'src_ip': src_ip,
+                'message': 'Nieudana próba logowania: błędne poświadczenia'
+            })
             flash('Błędny login lub hasło.', 'danger')
 
     return render_template('login.html')
+
+
 
 @auth_bp.route('/logout', methods=['GET', 'POST'])
 @login_required
@@ -88,7 +125,14 @@ def logout():
         Returns:
             Response: Przekierowanie do strony logowania.
     """
+    user_name = current_user.login
     logout_user()
+    security_logger.info("USER_LOGOUT", extra={
+        'event': 'AUTH_LOGOUT',
+        'user': user_name,
+        'src_ip': request.remote_addr,
+        'message': 'Użytkownik wylogował się poprawnie'
+    })
     flash('Wylogowano pomyślnie.', 'info')
     return redirect(url_for('auth.login'))
 
@@ -142,13 +186,20 @@ def register():
             Response: Widok rejestracji z komunikatem o wygenerowanym haśle.
     """
     if current_user.rola != 'admin':
+        security_logger.critical("UNAUTHORIZED_ACCESS_ATTEMPT", extra={
+            'event': 'ACCESS_VIOLATION',
+            'user': current_user.login,
+            'target': 'register_page',
+            'src_ip': request.remote_addr,
+            'message': 'Próba dostępu do rejestracji bez uprawnień admina'
+        })
         flash('Brak uprawnień!', 'danger')
         return redirect(url_for('index'))
 
     if request.method == 'POST':
         imie = request.form.get('imie')
         nazwisko = request.form.get('nazwisko')
-        login = request.form.get('login')
+        login_new = request.form.get('login')
         rola = request.form.get('rola')
 
         temp_password = generate_strong_password()
@@ -157,7 +208,8 @@ def register():
         try:
             res = db.session.execute(text("""
                                           INSERT INTO pdt_core.pilot (imie, nazwisko)
-                                          VALUES (:i, :n) RETURNING id_pilot
+                                          VALUES (:i, :n)
+                                          RETURNING id_pilot
                                           """), {'i': imie, 'n': nazwisko})
             new_pilot_id = res.fetchone()[0]
 
@@ -165,16 +217,25 @@ def register():
                                     INSERT INTO pdt_auth.uzytkownik (login, haslo_hash, rola, id_pilot)
                                     VALUES (:login, :password, :rola, :id_pilot)
                                     """), {
-                                   'login': login, 'password': hashed_password,
+                                   'login': login_new, 'password': hashed_password,
                                    'rola': rola, 'id_pilot': new_pilot_id
                                })
             db.session.commit()
+
+            security_logger.info("USER_CREATED", extra={
+                'event': 'USER_PROVISIONING',
+                'admin_user': current_user.login,
+                'new_user': login_new,
+                'new_pilot_id': new_pilot_id,
+                'src_ip': request.remote_addr,
+                'message': f'Administrator utworzył nowe konto dla {imie} {nazwisko}'
+            })
 
             flash(f'Utworzono konto dla {imie} {nazwisko}. HASŁO TYMCZASOWE: {temp_password}', 'success')
             return redirect(url_for('index'))
         except Exception as e:
             db.session.rollback()
-            # flash(f'Błąd: {str(e)}', 'danger')
+            logging.getLogger("error").error(f"REGISTER_ERROR: {str(e)}", exc_info=True)
 
     return render_template('register.html')
 
@@ -248,6 +309,12 @@ def profile():
 
             if nowe:
                 if not stare or not check_password_hash(current_user.haslo_hash, stare):
+                    security_logger.warning("PWD_CHANGE_FAILURE", extra={
+                        'event': 'CREDENTIAL_UPDATE_FAIL',
+                        'user': current_user.login,
+                        'src_ip': request.remote_addr,
+                        'message': 'Błędne stare hasło przy próbie zmiany'
+                    })
                     flash('Błędne stare hasło!', 'danger')
                 elif nowe != nowe_potw:
                     flash('Nowe hasła nie są identyczne!', 'danger')
@@ -258,6 +325,12 @@ def profile():
                     db.session.execute(text("UPDATE pdt_auth.uzytkownik SET haslo_hash = :h WHERE id_uzytkownik = :id"),
                                        {'h': hash_h, 'id': current_user.id_uzytkownik})
                     db.session.commit()
+                    security_logger.info("PWD_CHANGE_SUCCESS", extra={
+                        'event': 'CREDENTIAL_UPDATE_SUCCESS',
+                        'user': current_user.login,
+                        'src_ip': request.remote_addr,
+                        'message': 'Hasło zostało zmienione pomyślnie'
+                    })
                     flash('Hasło zostało zmienione pomyślnie.', 'success')
                     return redirect(url_for('auth.profile'))
 
@@ -271,6 +344,12 @@ def profile():
                         pokazywac_licencje = :l
                     WHERE id_pilot = :id
                 """), {'d': pokazywac_dane, 'l': pokazywac_lic, 'id': current_user.id_pilot})
+                app_logger.info("PRIVACY_SETTINGS_UPDATED", extra={
+                    'event': 'GDPR_UPDATE',
+                    'user': current_user.login,
+                    'src_ip': request.remote_addr,
+                    'message': 'Użytkownik zaktualizował ustawienia RODO'
+                })
                 db.session.commit()
                 flash('Ustawienia prywatności zostały zapisane!', 'success')
                 return redirect(url_for('auth.profile'))

@@ -1,0 +1,431 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="pl" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>flask_wtf.csrf &mdash; PDT 1.0 - dokumentacja</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=331e28ce"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=2827c288"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Indeks" href="../../genindex.html" />
+    <link rel="search" title="Szukaj" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            PDT
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Szukaj" aria-label="Szukaj" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Moduły:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Dokumentacja Techniczna PDT</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PDT</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Kod modułu</a></li>
+      <li class="breadcrumb-item active">flask_wtf.csrf</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Kod źródłowy modułu flask_wtf.csrf</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">hmac</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">urllib.parse</span><span class="w"> </span><span class="kn">import</span> <span class="n">urlparse</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">Blueprint</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">current_app</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">g</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">request</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">session</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">itsdangerous</span><span class="w"> </span><span class="kn">import</span> <span class="n">BadData</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">itsdangerous</span><span class="w"> </span><span class="kn">import</span> <span class="n">SignatureExpired</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">itsdangerous</span><span class="w"> </span><span class="kn">import</span> <span class="n">URLSafeTimedSerializer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">werkzeug.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">BadRequest</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">wtforms</span><span class="w"> </span><span class="kn">import</span> <span class="n">ValidationError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">wtforms.csrf.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">CSRF</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;generate_csrf&quot;</span><span class="p">,</span> <span class="s2">&quot;validate_csrf&quot;</span><span class="p">,</span> <span class="s2">&quot;CSRFProtect&quot;</span><span class="p">)</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_csrf</span><span class="p">(</span><span class="n">secret_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">token_key</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate a CSRF token. The token is cached for a request, so multiple</span>
+<span class="sd">    calls to this function will generate the same token.</span>
+
+<span class="sd">    During testing, it might be useful to access the signed token in</span>
+<span class="sd">    ``g.csrf_token`` and the raw token in ``session[&#39;csrf_token&#39;]``.</span>
+
+<span class="sd">    :param secret_key: Used to securely sign the token. Default is</span>
+<span class="sd">        ``WTF_CSRF_SECRET_KEY`` or ``SECRET_KEY``.</span>
+<span class="sd">    :param token_key: Key where token is stored in session for comparison.</span>
+<span class="sd">        Default is ``WTF_CSRF_FIELD_NAME`` or ``&#39;csrf_token&#39;``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">secret_key</span> <span class="o">=</span> <span class="n">_get_config</span><span class="p">(</span>
+        <span class="n">secret_key</span><span class="p">,</span>
+        <span class="s2">&quot;WTF_CSRF_SECRET_KEY&quot;</span><span class="p">,</span>
+        <span class="n">current_app</span><span class="o">.</span><span class="n">secret_key</span><span class="p">,</span>
+        <span class="n">message</span><span class="o">=</span><span class="s2">&quot;A secret key is required to use CSRF.&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">field_name</span> <span class="o">=</span> <span class="n">_get_config</span><span class="p">(</span>
+        <span class="n">token_key</span><span class="p">,</span>
+        <span class="s2">&quot;WTF_CSRF_FIELD_NAME&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;csrf_token&quot;</span><span class="p">,</span>
+        <span class="n">message</span><span class="o">=</span><span class="s2">&quot;A field name is required to use CSRF.&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">field_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">g</span><span class="p">:</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">URLSafeTimedSerializer</span><span class="p">(</span><span class="n">secret_key</span><span class="p">,</span> <span class="n">salt</span><span class="o">=</span><span class="s2">&quot;wtf-csrf-token&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">field_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">session</span><span class="p">:</span>
+            <span class="n">session</span><span class="p">[</span><span class="n">field_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="mi">64</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">token</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="n">field_name</span><span class="p">])</span>
+        <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+            <span class="n">session</span><span class="p">[</span><span class="n">field_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha1</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="mi">64</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+            <span class="n">token</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="n">field_name</span><span class="p">])</span>
+
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">field_name</span><span class="p">,</span> <span class="n">token</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">g</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field_name</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">validate_csrf</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">secret_key</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">time_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">token_key</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if the given data is a valid CSRF token. This compares the given</span>
+<span class="sd">    signed token to the one stored in the session.</span>
+
+<span class="sd">    :param data: The signed CSRF token to be checked.</span>
+<span class="sd">    :param secret_key: Used to securely sign the token. Default is</span>
+<span class="sd">        ``WTF_CSRF_SECRET_KEY`` or ``SECRET_KEY``.</span>
+<span class="sd">    :param time_limit: Number of seconds that the token is valid. Default is</span>
+<span class="sd">        ``WTF_CSRF_TIME_LIMIT`` or 3600 seconds (60 minutes).</span>
+<span class="sd">    :param token_key: Key where token is stored in session for comparison.</span>
+<span class="sd">        Default is ``WTF_CSRF_FIELD_NAME`` or ``&#39;csrf_token&#39;``.</span>
+
+<span class="sd">    :raises ValidationError: Contains the reason that validation failed.</span>
+
+<span class="sd">    .. versionchanged:: 0.14</span>
+<span class="sd">        Raises ``ValidationError`` with a specific error message rather than</span>
+<span class="sd">        returning ``True`` or ``False``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">secret_key</span> <span class="o">=</span> <span class="n">_get_config</span><span class="p">(</span>
+        <span class="n">secret_key</span><span class="p">,</span>
+        <span class="s2">&quot;WTF_CSRF_SECRET_KEY&quot;</span><span class="p">,</span>
+        <span class="n">current_app</span><span class="o">.</span><span class="n">secret_key</span><span class="p">,</span>
+        <span class="n">message</span><span class="o">=</span><span class="s2">&quot;A secret key is required to use CSRF.&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">field_name</span> <span class="o">=</span> <span class="n">_get_config</span><span class="p">(</span>
+        <span class="n">token_key</span><span class="p">,</span>
+        <span class="s2">&quot;WTF_CSRF_FIELD_NAME&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;csrf_token&quot;</span><span class="p">,</span>
+        <span class="n">message</span><span class="o">=</span><span class="s2">&quot;A field name is required to use CSRF.&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">time_limit</span> <span class="o">=</span> <span class="n">_get_config</span><span class="p">(</span><span class="n">time_limit</span><span class="p">,</span> <span class="s2">&quot;WTF_CSRF_TIME_LIMIT&quot;</span><span class="p">,</span> <span class="mi">3600</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="s2">&quot;The CSRF token is missing.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">field_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">session</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="s2">&quot;The CSRF session token is missing.&quot;</span><span class="p">)</span>
+
+    <span class="n">s</span> <span class="o">=</span> <span class="n">URLSafeTimedSerializer</span><span class="p">(</span><span class="n">secret_key</span><span class="p">,</span> <span class="n">salt</span><span class="o">=</span><span class="s2">&quot;wtf-csrf-token&quot;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">token</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">max_age</span><span class="o">=</span><span class="n">time_limit</span><span class="p">)</span>
+    <span class="k">except</span> <span class="n">SignatureExpired</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="s2">&quot;The CSRF token has expired.&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+    <span class="k">except</span> <span class="n">BadData</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="s2">&quot;The CSRF token is invalid.&quot;</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">hmac</span><span class="o">.</span><span class="n">compare_digest</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="n">field_name</span><span class="p">],</span> <span class="n">token</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">ValidationError</span><span class="p">(</span><span class="s2">&quot;The CSRF tokens do not match.&quot;</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_config</span><span class="p">(</span>
+    <span class="n">value</span><span class="p">,</span> <span class="n">config_name</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s2">&quot;CSRF is not configured.&quot;</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Find config value based on provided value, Flask config, and default</span>
+<span class="sd">    value.</span>
+
+<span class="sd">    :param value: already provided config value</span>
+<span class="sd">    :param config_name: Flask ``config`` key</span>
+<span class="sd">    :param default: default value if not provided or configured</span>
+<span class="sd">    :param required: whether the value must not be ``None``</span>
+<span class="sd">    :param message: error message if required config is not found</span>
+<span class="sd">    :raises KeyError: if required config is not found</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">config_name</span><span class="p">,</span> <span class="n">default</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">required</span> <span class="ow">and</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">value</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_FlaskFormCSRF</span><span class="p">(</span><span class="n">CSRF</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setup_form</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">form</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="n">form</span><span class="o">.</span><span class="n">meta</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">setup_form</span><span class="p">(</span><span class="n">form</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_csrf_token</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">csrf_token_field</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">generate_csrf</span><span class="p">(</span>
+            <span class="n">secret_key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">csrf_secret</span><span class="p">,</span> <span class="n">token_key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">csrf_field_name</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate_csrf_token</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">form</span><span class="p">,</span> <span class="n">field</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">g</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;csrf_valid&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="c1"># already validated by CSRFProtect</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">validate_csrf</span><span class="p">(</span>
+                <span class="n">field</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">csrf_secret</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">csrf_time_limit</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">csrf_field_name</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">raise</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">CSRFProtect</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Enable CSRF protection globally for a Flask app.</span>
+
+<span class="sd">    ::</span>
+
+<span class="sd">        app = Flask(__name__)</span>
+<span class="sd">        csrf = CSRFProtect(app)</span>
+
+<span class="sd">    Checks the ``csrf_token`` field sent with forms, or the ``X-CSRFToken``</span>
+<span class="sd">    header sent with JavaScript requests. Render the token in templates using</span>
+<span class="sd">    ``{{ csrf_token() }}``.</span>
+
+<span class="sd">    See the :ref:`csrf` documentation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_exempt_views</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_exempt_blueprints</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">app</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">init_app</span><span class="p">(</span><span class="n">app</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">init_app</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">):</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">extensions</span><span class="p">[</span><span class="s2">&quot;csrf&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span>
+
+        <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;WTF_CSRF_ENABLED&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;WTF_CSRF_CHECK_DEFAULT&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;WTF_CSRF_METHODS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;WTF_CSRF_METHODS&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;POST&quot;</span><span class="p">,</span> <span class="s2">&quot;PUT&quot;</span><span class="p">,</span> <span class="s2">&quot;PATCH&quot;</span><span class="p">,</span> <span class="s2">&quot;DELETE&quot;</span><span class="p">])</span>
+        <span class="p">)</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;WTF_CSRF_FIELD_NAME&quot;</span><span class="p">,</span> <span class="s2">&quot;csrf_token&quot;</span><span class="p">)</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;WTF_CSRF_HEADERS&quot;</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;X-CSRFToken&quot;</span><span class="p">,</span> <span class="s2">&quot;X-CSRF-Token&quot;</span><span class="p">])</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;WTF_CSRF_TIME_LIMIT&quot;</span><span class="p">,</span> <span class="mi">3600</span><span class="p">)</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;WTF_CSRF_SSL_STRICT&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">app</span><span class="o">.</span><span class="n">jinja_env</span><span class="o">.</span><span class="n">globals</span><span class="p">[</span><span class="s2">&quot;csrf_token&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">generate_csrf</span>
+        <span class="n">app</span><span class="o">.</span><span class="n">context_processor</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;csrf_token&quot;</span><span class="p">:</span> <span class="n">generate_csrf</span><span class="p">})</span>
+
+        <span class="nd">@app</span><span class="o">.</span><span class="n">before_request</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">csrf_protect</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;WTF_CSRF_ENABLED&quot;</span><span class="p">]:</span>
+                <span class="k">return</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;WTF_CSRF_CHECK_DEFAULT&quot;</span><span class="p">]:</span>
+                <span class="k">return</span>
+
+            <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;WTF_CSRF_METHODS&quot;</span><span class="p">]:</span>
+                <span class="k">return</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">request</span><span class="o">.</span><span class="n">endpoint</span><span class="p">:</span>
+                <span class="k">return</span>
+
+            <span class="k">if</span> <span class="n">app</span><span class="o">.</span><span class="n">blueprints</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">blueprint</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exempt_blueprints</span><span class="p">:</span>
+                <span class="k">return</span>
+
+            <span class="n">view</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">view_functions</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">endpoint</span><span class="p">)</span>
+            <span class="n">dest</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">view</span><span class="o">.</span><span class="vm">__module__</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">view</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
+
+            <span class="k">if</span> <span class="n">dest</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exempt_views</span><span class="p">:</span>
+                <span class="k">return</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">protect</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_csrf_token</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># find the token in the form data</span>
+        <span class="n">field_name</span> <span class="o">=</span> <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;WTF_CSRF_FIELD_NAME&quot;</span><span class="p">]</span>
+        <span class="n">base_token</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field_name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">base_token</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">base_token</span>
+
+        <span class="c1"># if the form has a prefix, the name will be {prefix}-csrf_token</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">field_name</span><span class="p">):</span>
+                <span class="n">csrf_token</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="n">csrf_token</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">csrf_token</span>
+
+        <span class="c1"># find the token in the headers</span>
+        <span class="k">for</span> <span class="n">header_name</span> <span class="ow">in</span> <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;WTF_CSRF_HEADERS&quot;</span><span class="p">]:</span>
+            <span class="n">csrf_token</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">header_name</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">csrf_token</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">csrf_token</span>
+
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">protect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;WTF_CSRF_METHODS&quot;</span><span class="p">]:</span>
+            <span class="k">return</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">validate_csrf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_csrf_token</span><span class="p">())</span>
+        <span class="k">except</span> <span class="n">ValidationError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_error_response</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">is_secure</span> <span class="ow">and</span> <span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;WTF_CSRF_SSL_STRICT&quot;</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">request</span><span class="o">.</span><span class="n">referrer</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_error_response</span><span class="p">(</span><span class="s2">&quot;The referrer header is missing.&quot;</span><span class="p">)</span>
+
+            <span class="n">good_referrer</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;https://</span><span class="si">{</span><span class="n">request</span><span class="o">.</span><span class="n">host</span><span class="si">}</span><span class="s2">/&quot;</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">same_origin</span><span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">referrer</span><span class="p">,</span> <span class="n">good_referrer</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_error_response</span><span class="p">(</span><span class="s2">&quot;The referrer does not match the host.&quot;</span><span class="p">)</span>
+
+        <span class="n">g</span><span class="o">.</span><span class="n">csrf_valid</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># mark this request as CSRF valid</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">exempt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">view</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Mark a view or blueprint to be excluded from CSRF protection.</span>
+
+<span class="sd">        ::</span>
+
+<span class="sd">            @app.route(&#39;/some-view&#39;, methods=[&#39;POST&#39;])</span>
+<span class="sd">            @csrf.exempt</span>
+<span class="sd">            def some_view():</span>
+<span class="sd">                ...</span>
+
+<span class="sd">        ::</span>
+
+<span class="sd">            bp = Blueprint(...)</span>
+<span class="sd">            csrf.exempt(bp)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="n">Blueprint</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_exempt_blueprints</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">view</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">view</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">view</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">view_location</span> <span class="o">=</span> <span class="n">view</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">view_location</span> <span class="o">=</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">view</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span> <span class="n">view</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_exempt_views</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">view_location</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">view</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_error_response</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reason</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="n">CSRFError</span><span class="p">(</span><span class="n">reason</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">CSRFError</span><span class="p">(</span><span class="n">BadRequest</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Raise if the client sends invalid CSRF data with the request.</span>
+
+<span class="sd">    Generates a 400 Bad Request response with the failure reason by default.</span>
+<span class="sd">    Customize the response by registering a handler with</span>
+<span class="sd">    :meth:`flask.Flask.errorhandler`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;CSRF validation failed.&quot;</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">same_origin</span><span class="p">(</span><span class="n">current_uri</span><span class="p">,</span> <span class="n">compare_uri</span><span class="p">):</span>
+    <span class="n">current</span> <span class="o">=</span> <span class="n">urlparse</span><span class="p">(</span><span class="n">current_uri</span><span class="p">)</span>
+    <span class="n">compare</span> <span class="o">=</span> <span class="n">urlparse</span><span class="p">(</span><span class="n">compare_uri</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">current</span><span class="o">.</span><span class="n">scheme</span> <span class="o">==</span> <span class="n">compare</span><span class="o">.</span><span class="n">scheme</span>
+        <span class="ow">and</span> <span class="n">current</span><span class="o">.</span><span class="n">hostname</span> <span class="o">==</span> <span class="n">compare</span><span class="o">.</span><span class="n">hostname</span>
+        <span class="ow">and</span> <span class="n">current</span><span class="o">.</span><span class="n">port</span> <span class="o">==</span> <span class="n">compare</span><span class="o">.</span><span class="n">port</span>
+    <span class="p">)</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Prawa zastrzeżone 2026, Dobrawa Rumszewicz.</p>
+  </div>
+
+  Zbudowano w <a href="https://www.sphinx-doc.org/">Sphinx</a> używając
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    dostarczone przez <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

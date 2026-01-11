@@ -1,0 +1,8 @@
+sqlalchemy
+werkzeug
+flask
+python-dotenv
+flask-login
+flask-sqlalchemy
+flask-limiter
+flask-wtf

@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h3>Edycja użytkownika: <span class="text-primary">{{ u.login }}</span></h3>
+            <a href="{{ url_for('admin.users_list') }}" class="btn btn-outline-secondary">Wróć</a>
+        </div>
+
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+            <div class="card shadow-sm mb-4">
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">1. Dane Logowania i Systemowe</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Login</label>
+                            <input type="text" name="login" class="form-control" value="{{ u.login }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Rola Systemowa</label>
+                            <select name="rola" class="form-select">
+                                <option value="pilot" {% if u.rola=='pilot' %}selected{% endif %}>Pilot (Standard)</option>
+                                <option value="mechanik" {% if u.rola=='mechanik' %}selected{% endif %}>Mechanik</option>
+                                <option value="admin" {% if u.rola=='admin' %}selected{% endif %}>Administrator</option>
+                            </select>
+                            <div class="form-text small">Rola określa uprawnienia w systemie (np. dostęp do Panelu Mechanika).</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Zmień Hasło</label>
+                        <input type="password" name="nowe_haslo" class="form-control" placeholder="Wpisz nowe hasło, aby zmienić (lub zostaw puste)">
+                    </div>
+
+                    <div class="card bg-light border-0">
+                        <div class="card-body d-flex justify-content-center align-items-center">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="activeSwitch" name="czy_aktywny"
+                                       style="width: 3em; height: 1.5em; cursor: pointer;"
+                                       {% if not u.deleted_at %}checked{% endif %}>
+                                <label class="form-check-label fw-bold ms-3 fs-5 pt-1" for="activeSwitch" style="cursor: pointer;">
+                                    Konto Aktywne
+                                </label>
+                            </div>
+                        </div>
+                        <div class="card-footer text-center text-muted small border-0 bg-light pt-0">
+                            Odznaczenie zablokuje możliwość logowania (Soft Delete).
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if u.id_pilot %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-person-vcard"></i> 2. Dane Pilota (Osobowe i Nalot)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Imię</label>
+                            <input type="text" name="imie" class="form-control" value="{{ u.imie }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nazwisko</label>
+                            <input type="text" name="nazwisko" class="form-control" value="{{ u.nazwisko }}" required>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Numer Licencji / Status</label>
+                            <div class="input-group mb-2">
+                                <input type="text" name="licencja" id="licencjaInput" class="form-control" value="{{ u.licencja or '' }}" placeholder="np. SPL 1234">
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-info" onclick="setLicence('UCZEŃ')">Uczeń</button>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="setLicence('SPL ')">Pilot SPL</button>
+                                <button type="button" class="btn btn-sm btn-outline-dark" onclick="setLicence('INSTRUKTOR')">Instruktor</button>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 border-start">
+                            <label class="form-label fw-bold text-primary">Nalot Zewnętrzny / Początkowy</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" name="nalot_zewnetrzny" class="form-control border-primary fw-bold"
+                                       value="{{ u.nalot_zewnetrzny or 0 }}">
+                                <span class="input-group-text">h</span>
+                            </div>
+                            <div class="form-text mt-2">
+                                <div class="d-flex justify-content-between">
+                                    <span>Z Systemu: {{ "%.2f"|format(u.nalot_systemowy) }} h</span>
+                                    <span>+ Zewnątrz</span>
+                                </div>
+                                <div class="border-top pt-1 mt-1 fw-bold text-end">
+                                    SUMA: {{ "%.2f"|format(u.nalot_total) }} h
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% else %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-person-vcard"></i> 2. Dane Pilota (Brak powiązania)</h5>
+                </div>
+                <div class="card-body text-center py-4">
+                    <p class="lead mb-3">Ten użytkownik (Login: <strong>{{ u.login }}</strong>) nie posiada jeszcze profilu osobowego.</p>
+                    <p class="text-muted mb-4">Bez profilu osobowego nie można przypisać imienia, nazwiska, licencji ani nalotu.</p>
+
+                    <button type="submit" name="action" value="create_pilot_profile" class="btn btn-success btn-lg shadow">
+                        <i class="bi bi-person-plus-fill me-2"></i> Utwórz Pusty Profil Osobowy
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="d-grid mb-5">
+                <button type="submit" name="action" value="save_data" class="btn btn-success btn-lg shadow">
+                    <i class="bi bi-check-circle-fill me-2"></i> Zapisz Wszystkie Zmiany
+                </button>
+            </div>
+        </form>
+
+        {% if u.id_pilot %}
+        <div class="card shadow-sm border-warning mb-5">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-wallet2"></i> Finanse i Korekta Salda</h5>
+            </div>
+            <div class="card-body">
+
+                <div class="text-center py-4 border-bottom mb-4">
+                    <h6 class="text-muted text-uppercase small fw-bold letter-spacing-1">Aktualne Dostępne Środki</h6>
+                    <h1 class="display-4 fw-bold {{ 'text-danger' if u.saldo < 0 else 'text-success' }}">
+                        {{ "%.2f"|format(u.saldo) }} <span class="fs-4 text-muted">PLN</span>
+                    </h1>
+                </div>
+
+                <div class="alert alert-light border d-flex align-items-center mb-4" role="alert">
+                    <i class="bi bi-info-circle-fill text-warning fs-4 me-3"></i>
+                    <div>
+                        Tutaj możesz ręcznie dodać wpłatę lub obciążenie.
+                        Aby <strong>zabrać</strong> środki (obciążyć pilota), wpisz kwotę z minusem (np. <code>-50.00</code>).
+                    </div>
+                </div>
+
+                <form method="POST" class="row g-3 align-items-end">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="action" value="korekta_salda">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Kwota Korekty (PLN)</label>
+                        <input type="number" step="0.01" name="kwota_korekty" class="form-control border-warning fw-bold" placeholder="np. -20.50" required>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Opis operacji</label>
+                        <input type="text" name="komentarz_korekty" class="form-control" placeholder="np. Korekta błędu, Uznanie reklamacji..." required>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-dark w-100 fw-bold">
+                            Wykonaj Korektę
+                        </button>
+                    </div>
+                </form>
+
+                <hr class="my-4">
+
+                <h5 class="fw-bold mb-3"><i class="bi bi-clock-history"></i> Historia Operacji Finansowych</h5>
+
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm table-hover border mb-0" style="font-size: 0.9rem;">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Data</th>
+                                <th>Typ / Opis</th>
+                                <th class="text-end">Kwota</th>
+                                <th class="text-end">Saldo Przed</th>
+                                <th class="text-end">Saldo Po</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for h in historia %}
+                            <tr>
+                                <td class="text-muted" style="white-space: nowrap;">
+                                    {{ h.data_operacji.strftime('%Y-%m-%d %H:%M') }}
+                                </td>
+                                <td>
+                                    <strong>{{ h.typ_operacji }}</strong><br>
+                                    <span class="text-muted small">{{ h.opis }}</span>
+                                </td>
+                                <td class="text-end fw-bold {{ 'text-success' if h.kwota_operacji > 0 else 'text-danger' }}">
+                                    {{ "+" if h.kwota_operacji > 0 }}{{ "%.2f"|format(h.kwota_operacji) }}
+                                </td>
+                                <td class="text-end text-muted">
+                                    {{ "%.2f"|format(h.saldo_przed) }}
+                                </td>
+                                <td class="text-end fw-bold">
+                                    {{ "%.2f"|format(h.saldo_po) }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">Brak historii operacji.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

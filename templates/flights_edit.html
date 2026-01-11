@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xl-8 col-lg-10">
+        <form method="POST" id="editForm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <h3 class="fw-bold text-primary mb-0"><i class="bi bi-pencil-square me-2"></i>Edycja Lotu #{{ lot.id_lot }}</h3>
+                <a href="{{ url_for('flights.index') }}" class="btn btn-outline-secondary">Anuluj</a>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-light fw-bold text-uppercase small py-3">
+                    1. Logistyka i Czas
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Szybowiec</label>
+                            <select name="id_szybowiec" class="form-select" required>
+                                {% for s in szybowce %}
+                                <option value="{{ s.id_szybowiec }}" {% if s.id_szybowiec == lot.id_szybowiec %}selected{% endif %}>
+                                    {{ s.znak_rej }} ({{ s.typ }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Lotnisko Startu</label>
+                            <select name="id_start" class="form-select">
+                                {% for l in lotniska %}
+                                <option value="{{ l.id_lotnisko }}" {% if l.id_lotnisko == lot.id_start %}selected{% endif %}>
+                                    {{ l.nazwa }} ({{ l.kod }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Rodzaj Startu</label>
+                            <select name="rodzaj_startu" class="form-select">
+                                <option value="wyciagarka" {% if lot.rodzaj_startu == 'wyciagarka' %}selected{% endif %}>Wyciągarka</option>
+                                <option value="samolot" {% if lot.rodzaj_startu == 'samolot' %}selected{% endif %}>Hol za samolotem</option>
+                                <option value="grawitacyjny" {% if lot.rodzaj_startu == 'grawitacyjny' %}selected{% endif %}>Grawitacyjny</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">Czas startu</label>
+                            <input type="datetime-local" name="dt_start" class="form-control"
+                                   value="{{ lot.dt_start.strftime('%Y-%m-%dT%H:%M') if lot.dt_start }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">Czas lądowania</label>
+                            <input type="datetime-local" name="dt_ladowanie" class="form-control"
+                                   value="{{ lot.dt_ladowanie.strftime('%Y-%m-%dT%H:%M') if lot.dt_ladowanie }}" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4 border-start border-primary border-4">
+                <div class="card-header bg-white fw-bold text-primary py-3 d-flex justify-content-between">
+                    <span>2. Załoga i Bezpieczeństwo</span>
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <div class="card-body bg-light">
+
+                    <div class="row g-2 mb-3 align-items-end">
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold small text-uppercase">Pilot 1 (Dowódca / Uczeń)</label>
+                            <select name="id_pilot_1" class="form-select" required>
+                                {% for p in piloci %}
+                                <option value="{{ p.id_pilot }}" {% if current_p1 and p.id_pilot == current_p1.id_pilot %}selected{% endif %}>
+                                    {{ p.nazwisko }} {{ p.imie }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small text-uppercase">Rola</label>
+                            <select name="rola_1" id="rola_1" class="form-select border-primary fw-bold" onchange="toggleSupervision()">
+                                <option value="PIC" {% if current_p1 and current_p1.rola == 'PIC' %}selected{% endif %}>PIC (Dowódca)</option>
+                                <option value="UCZEN" {% if current_p1 and current_p1.rola == 'UCZEN' %}selected{% endif %}>Uczeń</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3 align-items-end">
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold small text-uppercase text-muted">Pilot 2 / Instruktor / Pasażer</label>
+                            <select name="id_pilot_2" id="id_pilot_2" class="form-select" onchange="toggleSupervision()">
+                                <option value="">-- BRAK (Lot w jedną osobę) --</option>
+                                {% for p in piloci %}
+                                <option value="{{ p.id_pilot }}" {% if current_p2 and p.id_pilot == current_p2.id_pilot %}selected{% endif %}>
+                                    {{ p.nazwisko }} {{ p.imie }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold small text-uppercase text-muted">Rola</label>
+                            <select name="rola_2" id="rola_2" class="form-select" onchange="toggleSupervision()">
+                                <option value="" {% if not current_p2 %}selected{% endif %}>Brak</option>
+                                <option value="SIC" {% if current_p2 and current_p2.rola == 'SIC' %}selected{% endif %}>SIC (Drugi Pilot)</option>
+                                <option value="INSTRUKTOR" {% if current_p2 and current_p2.rola == 'INSTRUKTOR' %}selected{% endif %}>Instruktor</option>
+                                <option value="PASAZER" class="text-success fw-bold" {% if current_p2 and current_p2.rola == 'PASAZER' %}selected{% endif %}>Pasażer Komercyjny</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="supervisionSection" class="alert alert-warning mt-3 mb-0" style="display:none;">
+                        <div class="d-flex gap-3 align-items-center">
+                            <i class="bi bi-exclamation-triangle-fill fs-3 text-warning"></i>
+                            <div class="w-100">
+                                <label class="form-label fw-bold text-dark mb-1">WYMAGANY NADZÓR Z ZIEMI</label>
+                                <div class="small text-muted mb-2">
+                                    Wybrano rolę <strong>Uczeń</strong> w locie samodzielnym. Wskaż instruktora nadzorującego.
+                                </div>
+                                <select name="id_nadzorujacy" class="form-select border-warning">
+                                    <option value="">-- Wybierz Instruktora Nadzorującego --</option>
+                                    {% for p in piloci %}
+                                    <option value="{{ p.id_pilot }}" {% if lot.id_nadzorujacy == p.id_pilot %}selected{% endif %}>
+                                        {{ p.nazwisko }} {{ p.imie }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label fw-bold">Uwagi do lotu</label>
+                            <input type="text" name="uwagi" class="form-control" value="{{ lot.uwagi or '' }}">
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input bg-danger border-danger" type="checkbox" id="checkUsterka"
+                                       {% if lot.ma_usterke == 'TAK' %}checked{% endif %}
+                                       onclick="document.getElementById('usterkaBox').classList.toggle('d-none')">
+                                <label class="form-check-label fw-bold text-danger" for="checkUsterka">Zgłoś usterkę techniczną</label>
+                            </div>
+                            <div class="mt-2 {% if lot.ma_usterke != 'TAK' %}d-none{% endif %}" id="usterkaBox">
+                                <textarea name="usterka" class="form-control border-danger" rows="2">{{ lot.opis_usterek if lot.ma_usterke == 'TAK' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2 mb-5">
+                <button type="submit" class="btn btn-primary btn-lg shadow">
+                    <i class="bi bi-check-lg me-2"></i> Zapisz Zmiany
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+<script>
+    function toggleSupervision() {
+        const rola1 = document.getElementById('rola_1').value;
+        const pilot2 = document.getElementById('id_pilot_2').value;
+        const supervisionDiv = document.getElementById('supervisionSection');
+
+        if (rola1 === 'UCZEN' && pilot2 === "") {
+            supervisionDiv.style.display = 'block';
+        } else {
+            supervisionDiv.style.display = 'none';
+        }
+    }
+
+    window.addEventListener('load', toggleSupervision);
+</script>
+{% endblock %}

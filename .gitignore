@@ -1,0 +1,16 @@
+.env
+
+venv/
+.venv/
+env/
+
+.idea/
+*.iml
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+static/uploads/*
+
+*.log

@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Usterka #{{ usterka.id_usterka }} - {{ usterka.znak_rej }}</h4>
+                <a href="{{ url_for('mechanic.index') }}" class="btn btn-sm btn-outline-light">Wróć</a>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-secondary">
+                    <strong>Opis zgłoszenia:</strong><br>
+                    {{ usterka.opis }}
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>Zgłaszający:</strong> {{ usterka.zglaszajacy or 'Nieznany' }}</p>
+                        <p><strong>Data lotu:</strong> {{ usterka.data_lotu }}</p>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        Status:
+                        <span class="badge fs-6 {{ 'bg-danger' if usterka.status=='otwarta' else ('bg-success' if usterka.status=='zamknieta' else 'bg-warning') }}">
+                            {{ usterka.status|upper }}
+                        </span>
+                        {% if usterka.zm_nazwisko or usterka.zm_login %}
+                            <div class="text-muted small mt-1">
+                                Ost. zmiana:
+                                <strong>
+                                    {{ usterka.zm_imie }} {{ usterka.zm_nazwisko }}
+                                    {% if not usterka.zm_nazwisko %}{{ usterka.zm_login }}{% endif %}
+                                </strong>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <h5 class="border-bottom pb-2">Dokumentacja fotograficzna</h5>
+                {% if usterka.zdjecie_sciezka %}
+                    <div class="text-center bg-light p-2 mb-3 border rounded">
+                        <img src="{{ url_for('static', filename='uploads/' + usterka.zdjecie_sciezka) }}" 
+                             class="img-fluid rounded" style="max-height: 400px;" alt="Zdjęcie usterki">
+                    </div>
+                {% else %}
+                    <p class="text-muted fst-italic">Brak zdjęcia.</p>
+                {% endif %}
+
+                {% if current_user.rola in ['admin', 'mechanik'] %}
+                <form method="POST" enctype="multipart/form-data" class="mb-4 p-3 bg-light rounded border">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="action" value="upload_photo">
+                    <label class="form-label fw-bold small">Dodaj/Zmień zdjęcie:</label>
+                    <div class="input-group">
+                        <input type="file" name="file" class="form-control" accept="image/*">
+                        <button type="submit" class="btn btn-secondary">Wyślij</button>
+                    </div>
+                </form>
+                {% endif %}
+
+                <h5 class="border-bottom pb-2 mt-4">Historia prac / Przebieg naprawy</h5>
+                {% for n in naprawy %}
+                    <div class="card mb-2 border-0 bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted">{{ n.data_naprawy.strftime('%Y-%m-%d %H:%M') }} - <strong>{{ n.mechanik_login }}</strong></small>
+                            <p class="mb-1 mt-1">{{ n.opis_prac }}</p>
+                            {% if n.wymienione_czesci %}
+                                <div class="small text-danger"><i class="bi bi-gear-fill"></i> Części: {{ n.wymienione_czesci }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="text-muted">Brak wpisów serwisowych.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        {% if current_user.rola in ['admin', 'mechanik'] %}
+        <div class="card shadow border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Panel Mechanika</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="action" value="update_status">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Zmień Status</label>
+                        <select name="status" class="form-select">
+                            <option value="otwarta" {% if usterka.status=='otwarta' %}selected{% endif %}>Otwarta</option>
+                            <option value="w_toku" {% if usterka.status=='w_toku' %}selected{% endif %}>W toku (Diagnostyka/Części)</option>
+                            <option value="zamknieta" {% if usterka.status=='zamknieta' %}selected{% endif %}>Zamknięta (Sprawny)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Dodaj opis prac</label>
+                        <textarea name="opis_prac" class="form-control" rows="4" placeholder="Co zostało sprawdzone/naprawione?"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Wymienione części</label>
+                        <input type="text" name="czesci" class="form-control" placeholder="Np. opona 400x100, śruba M6">
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            Tylko mechanicy mają uprawnienia do edycji tego zgłoszenia.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

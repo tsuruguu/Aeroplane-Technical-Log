@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">Ustawienia Profilu</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <h5>Prywatność (RODO)</h5>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="pokazywac_dane" name="pokazywac_dane" 
+                                   {% if pilot and pilot.pokazywac_dane %}checked{% endif %}>
+                            <label class="form-check-label" for="pokazywac_dane">Pokazuj moje Imię i Nazwisko w rankingu</label>
+                        </div>
+                        <div class="form-check form-switch mb-4">
+                            <input class="form-check-input" type="checkbox" id="pokazywac_lic" name="pokazywac_lic" 
+                                   {% if pilot and pilot.pokazywac_licencje %}checked{% endif %}>
+                            <label class="form-check-label" for="pokazywac_lic">Pokazuj numer mojej licencji publicznie</label>
+                        </div>
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" name="action" value="save_rodo" class="btn btn-primary btn-lg">Zapisz ustawienia</button>
+                        </div>
+
+                        <hr>
+                        <h5>Zmiana Hasła</h5>
+                        <div class="mb-3">
+                            <label class="form-label">Stare Hasło</label>
+                            <input type="password" name="stare_haslo" class="form-control" id="old_password">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Nowe Hasło</label>
+                            <input type="password" name="nowe_haslo" class="form-control" id="new_password" oninput="validatePasswordLive()">
+
+                            <ul class="list-unstyled mt-2" style="font-size: 0.85rem;">
+                                <li id="req_len" class="text-danger">● Minimum 12 znaków</li>
+                                <li id="req_upper" class="text-danger">● Minimum 2 duże litery</li>
+                                <li id="req_spec" class="text-danger">● Minimum 2 znaki specjalne</li>
+                            </ul>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Powtórz Nowe Hasło</label>
+                            <input type="password" name="nowe_haslo_confirm" class="form-control" id="confirm_password" oninput="validatePasswordLive()">
+                            <small id="req_match" class="text-danger d-none">Hasła nie są identyczne!</small>
+                        </div>
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" name="action" value="change_password" class="btn btn-primary btn-lg">Zmień hasło</button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function validatePasswordLive() {
+    const pass = document.getElementById('new_password').value;
+    const confirm = document.getElementById('confirm_password').value;
+    const matchNote = document.getElementById('req_match');
+
+    const checks = {
+        req_len: pass.length >= 12,
+        req_upper: (pass.match(/[A-Z]/g) || []).length >= 2,
+        req_spec: (pass.match(/[!@#$%^&*(),.?":{}|<>]/g) || []).length >= 2
+    };
+
+    for (const [id, met] of Object.entries(checks)) {
+        const el = document.getElementById(id);
+        if (met) {
+            el.classList.replace('text-danger', 'text-success');
+            el.innerHTML = '● ' + el.innerHTML.split(' ').slice(1).join(' ');
+        } else {
+            el.classList.replace('text-success', 'text-danger');
+            el.innerHTML = '● ' + el.innerHTML.split(' ').slice(1).join(' ');
+        }
+    }
+
+    if (confirm.length > 0) {
+        matchNote.classList.toggle('d-none', pass === confirm);
+    } else {
+        matchNote.classList.add('d-none');
+    }
+}
+</script>
+
+{% endblock %}

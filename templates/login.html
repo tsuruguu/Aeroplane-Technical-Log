@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white text-center py-3">
+                <h4 class="mb-0">Logowanie do Systemu</h4>
+            </div>
+            <div class="card-body p-4">
+                
+                <form action="{{ url_for('auth.login') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="mb-3">
+                        <label for="login" class="form-label">Login użytkownika</label>
+                        <input type="text" class="form-control" id="login" name="login" 
+                               placeholder="Wpisz login" required autofocus>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Hasło</label>
+                        <input type="password" class="form-control" id="password" name="password" 
+                               placeholder="Wpisz hasło" required>
+                    </div>
+                    
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">Zaloguj się</button>
+                    </div>
+                </form>
+
+            </div>
+            <div class="card-footer text-center bg-white border-0 pb-4">
+                <small class="text-muted">Nie masz konta? Skontaktuj się z administratorem aeroklubu.</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-dark text-white text-center">
+                <h3>Panel Administratora: Nowy Użytkownik</h3>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="mb-3">
+                        <label class="form-label">Imię</label>
+                        <input type="text" name="imie" class="form-control" placeholder="Np. Jan" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nazwisko</label>
+                        <input type="text" name="nazwisko" class="form-control" placeholder="Np. Kowalski" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Login (do logowania)</label>
+                        <input type="text" name="login" class="form-control" placeholder="Np. jkowalski" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rola systemowa</label>
+                        <select name="rola" class="form-select">
+                            <option value="pilot">Pilot</option>
+                            <option value="mechanik">Mechanik</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">Utwórz użytkownika i pilota</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

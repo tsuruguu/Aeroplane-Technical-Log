@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">Statystyki i Raporty Systemu PDT</h2>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Ranking Nalotu (TOP 10)</h5>
+                <a href="{{ url_for('reports.export_piloci_csv') }}" class="btn btn-sm btn-light py-0 text-primary fw-bold" title="Pobierz CSV">
+                    💾 CSV
+                </a>
+            </div>
+            <div class="bg-primary bg-opacity-10 p-2 border-bottom border-primary text-center">
+                <span class="text-primary fw-bold">
+                    <i class="bi bi-person-circle"></i> Twój wynik:
+                </span>
+                <span class="badge bg-primary fs-6 mx-1">{{ "%.2f"|format(my_stats.hours) }} h</span>
+                <span class="text-muted small">|</span>
+                <span class="text-dark fw-bold small ms-1">Miejsce w rankingu: #{{ my_stats.rank }}</span>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-striped mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;">#</th>
+                            <th>Pilot</th>
+                            <th>Licencja</th>
+                            <th class="text-end">Nalot (h)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {# Ograniczenie do pierwszych 10 pilotów #}
+                        {% for p in piloci[:10] %}
+                        <tr>
+                            <td class="fw-bold text-muted text-center">{{ loop.index }}</td>
+                            <td>
+                                {% if current_user.rola == 'admin' or p.pokazywac_dane %}
+                                    {{ p.imie }} {{ p.nazwisko }}
+                                    {% if p.id_pilot == current_user.id_pilot %}
+                                        <span class="badge bg-warning text-dark super-small">TY</span>
+                                    {% endif %}
+                                {% else %}
+                                    *** ***
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {% if current_user.rola == 'admin' or p.pokazywac_licencje %}
+                                        {{ p.licencja }}
+                                    {% else %}
+                                        ***
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td class="text-end font-monospace fw-bold">{{ "%.2f"|format(p.nalot_h) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+             <div class="card-footer text-muted small text-center">
+                Wyświetlono top 10 z {{ piloci|length }} pilotów.
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Nalot Szybowców</h5>
+                <a href="{{ url_for('reports.export_szybowce_csv') }}" class="btn btn-sm btn-light py-0 text-success fw-bold">💾 CSV</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped mb-0" id="gliderTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 40px;">#</th>
+                                <th>Znak rej.</th>
+                                <th>Typ</th>
+                                <th class="text-end">Suma (h)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gliderTableBody">
+                            {% for s in szybowce %}
+                            <tr>
+                                <td class="text-muted text-center small">{{ loop.index }}</td>
+                                <td><strong>{{ s.znak_rej }}</strong></td>
+                                <td>{{ s.typ }}</td>
+                                <td class="text-end font-monospace">{{ "%.2f"|format(s.nalot_calk_h) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-content-between align-items-center py-2">
+                <button class="btn btn-sm btn-outline-secondary" onclick="changePage('glider', -1)">Poprzednia</button>
+                <span class="small text-muted" id="gliderPageInfo">Str. 1</span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="changePage('glider', 1)">Następna</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-5">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Stan konta i rozliczenia (Saldo)</h5>
+                <a href="{{ url_for('reports.export_saldo_csv') }}" class="btn btn-sm btn-light py-0 text-dark fw-bold">💾 CSV</a>
+            </div>
+            <div class="card-body">
+                <table class="table table-hover table-sm table-striped mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Pilot</th>
+                            <th class="text-end">Suma lotów (koszt)</th>
+                            <th class="text-end">Suma wpłat</th>
+                            <th class="text-end">Saldo końcowe</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in sumy_dlugow %}
+                        <tr>
+                            <td class="fw-bold">
+                                {{ s.imie }} {{ s.nazwisko }}
+                                {% if s.id_pilot == current_user.id_pilot %} (Ty) {% endif %}
+                            </td>
+                            <td class="text-end text-muted">{{ "%.2f"|format(s.suma_kosztow) }} PLN</td>
+                            <td class="text-end text-success">{{ "%.2f"|format(s.suma_wplat) }} PLN</td>
+                            <td class="text-end fw-bold {{ 'text-danger' if s.saldo < 0 else 'text-dark' }}">
+                                {{ "%.2f"|format(s.saldo) }} PLN
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">Brak danych o rozliczeniach.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Szczegółowe zestawienie kosztów lotów</h5>
+                <a href="{{ url_for('reports.export_finanse_csv') }}" class="btn btn-sm btn-light py-0 text-secondary fw-bold" title="Pobierz CSV">
+                    💾 CSV
+                </a>
+            </div>
+             <div class="bg-secondary bg-opacity-10 p-2 border-bottom border-secondary d-flex align-items-center ps-3">
+                 <span class="text-secondary fw-bold me-2">
+                    <i class="bi bi-cash-stack"></i> Łączna kwota Twoich obciążeń (z tej tabeli):
+                </span>
+                <span class="badge bg-secondary fs-6">{{ "%.2f"|format(total_cost_sum) }} PLN</span>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover table-striped mb-0" id="financeTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 40px;">#</th>
+                                <th>ID Lotu</th>
+                                {% if current_user.rola == 'admin' %}
+                                    <th>Płatnik (Osoba obciążona)</th>
+                                {% else %}
+                                    <th>Pilot 1</th>
+                                    <th>Pilot 2</th>
+                                {% endif %}
+                                <th>Rola</th>
+                                <th class="text-end">Cena Total</th>
+                                {% if current_user.rola == 'admin' %}
+                                    <th class="text-end">Część płatnika</th>
+                                {% else %}
+                                    <th class="text-end">Twoja część</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody id="financeTableBody">
+                            {% for d in dluznicy %}
+                            <tr>
+                                <td class="text-muted text-center small">{{ loop.index }}</td>
+                                <td><a href="{{ url_for('flights.edit_flight', id_lot=d.id_lot) }}" class="text-decoration-none fw-bold">#{{ d.id_lot }}</a></td>
+                                {% if current_user.rola == 'admin' %}
+                                    <td class="fw-bold">{{ d.nazwisko }} {{ d.imie }}</td>
+                                {% else %}
+                                    <td>{{ d.pilot_1 if d.pilot_1 else "---" }}</td>
+                                    <td>{{ d.pilot_2 if d.pilot_2 else "---" }}</td>
+                                {% endif %}
+                                <td><small class="badge bg-light text-dark border">{{ d.rola }}</small></td>
+                                <td class="text-end text-muted">{{ "%.2f"|format(d.cena_lotu_total) }} PLN</td>
+                                <td class="text-end fw-bold text-danger">{{ "%.2f"|format(d.kwota_do_zaplaty) }} PLN</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-content-between align-items-center py-2">
+                <button class="btn btn-sm btn-outline-secondary" onclick="changePage('finance', -1)">Poprzednia</button>
+                <span class="small text-muted" id="financePageInfo">Str. 1</span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="changePage('finance', 1)">Następna</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const config = {
+        'glider': { rowsPerPage: 10, currentPage: 1 },
+        'finance': { rowsPerPage: 20, currentPage: 1 }
+    };
+
+    function renderTable(type) {
+        const body = document.getElementById(type + 'TableBody');
+        const rows = body.getElementsByTagName('tr');
+        const info = document.getElementById(type + 'PageInfo');
+        const totalRows = rows.length;
+        const totalPages = Math.ceil(totalRows / config[type].rowsPerPage);
+
+        if (config[type].currentPage < 1) config[type].currentPage = 1;
+        if (config[type].currentPage > totalPages && totalPages > 0) config[type].currentPage = totalPages;
+
+        const start = (config[type].currentPage - 1) * config[type].rowsPerPage;
+        const end = start + config[type].rowsPerPage;
+
+        for (let i = 0; i < totalRows; i++) {
+            if (i >= start && i < end) {
+                rows[i].style.display = '';
+            } else {
+                rows[i].style.display = 'none';
+            }
+        }
+
+        info.innerText = totalPages > 0
+            ? `Str. ${config[type].currentPage} z ${totalPages} (Wiersze ${start + 1}-${Math.min(end, totalRows)})`
+            : 'Brak danych';
+    }
+
+    function changePage(type, delta) {
+        config[type].currentPage += delta;
+        renderTable(type);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderTable('glider');
+        renderTable('finance');
+    });
+</script>
+
+{% endblock %}

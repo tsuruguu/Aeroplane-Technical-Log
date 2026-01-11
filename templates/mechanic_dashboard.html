@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4"><i class="bi bi-wrench-adjustable"></i> Panel Techniczny CAMO</h2>
+
+<div class="card shadow-sm mb-4">
+   <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Status Resursu Floty (Przeglądy 500h)</h5>
+        <a href="{{ url_for('mechanic.export_fleet_csv') }}" class="btn btn-sm btn-light py-0 fw-bold text-dark">CSV</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="fleetTable">
+                 <thead class="table-light">
+                    <tr>
+                        <th style="width: 50px;">ID</th>
+                        <th>Szybowiec</th>
+                        <th>Całkowity Nalot</th>
+                        <th>Ostatni Przegląd</th>
+                        <th>Wylatane od przeglądu</th>
+                        <th style="width: 20%;">Pozostało do 500h</th>
+                        <th class="text-end">Akcja</th>
+                    </tr>
+                </thead>
+                <tbody id="fleetTableBody">
+                    {% for item in flota %}
+                    <tr>
+                         <td class="text-muted text-center small">#{{ loop.index }}</td>
+                        <td>
+                            <a href="{{ url_for('mechanic.glider_details', id_szybowiec=item.szybowiec.id_szybowiec) }}"
+                               class="fw-bold text-decoration-none text-dark fs-5">
+                                {{ item.szybowiec.znak_rej }}
+                            </a>
+                            <div class="text-muted small">{{ item.szybowiec.typ }}</div>
+                        </td>
+                        <td class="fw-bold font-monospace">{{ "%.2f"|format(item.nalot_total) }} h</td>
+                        <td>
+                            {% if item.szybowiec.ostatni_przeglad %}
+                                {{ item.szybowiec.ostatni_przeglad }}<br>
+                                <small class="text-muted">Typ: {{ item.szybowiec.typ_przegladu }}</small>
+                                {% if item.mechanik_opis %}
+                                    <br><span class="badge bg-light text-dark border super-small" title="Wykonał przegląd">
+                                        <i class="bi bi-person-check"></i> {{ item.mechanik_opis }}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary">Brak danych</span>
+                            {% endif %}
+                        </td>
+                        <td class="font-monospace">{{ "%.2f"|format(item.nalot_od_check) }} h</td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-{{ item.alert }} me-2" style="width: 70px;">
+                                    {{ "%.2f"|format(item.pozostalo) }} h
+                                </span>
+                                <div class="progress flex-grow-1" style="height: 8px;">
+                                    <div class="progress-bar bg-{{ item.alert }}" role="progressbar"
+                                         style="width: {{ (item.nalot_od_check / 500 * 100)|round }}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                         <td class="text-end">
+                            {% if current_user.rola in ['admin', 'mechanik'] %}
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalPrzeglad{{ item.szybowiec.id_szybowiec }}">
+                                + Przegląd
+                            </button>
+                            <div class="modal fade" id="modalPrzeglad{{ item.szybowiec.id_szybowiec }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content text-start">
+                                        <form action="{{ url_for('mechanic.add_inspection') }}" method="POST">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Nowy Przegląd: {{ item.szybowiec.znak_rej }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <input type="hidden" name="id_szybowiec" value="{{ item.szybowiec.id_szybowiec }}">
+                                                <div class="mb-3">
+                                                    <label>Data przeglądu</label>
+                                                    <input type="date" name="data_przegladu" class="form-control" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label>Typ przeglądu</label>
+                                                    <select name="typ" class="form-select">
+                                                        <option value="500h">Okresowy 500h</option>
+                                                        <option value="Roczny">Roczny</option>
+                                                        <option value="Poawaryjny">Poawaryjny</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label>Uwagi</label>
+                                                    <textarea name="uwagi" class="form-control"></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="submit" class="btn btn-primary">Zatwierdź</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer d-flex justify-content-between align-items-center py-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="changePage('fleet', -1)">Poprzednia</button>
+        <span class="small text-muted" id="fleetPageInfo">Str. 1</span>
+        <button class="btn btn-sm btn-outline-secondary" onclick="changePage('fleet', 1)">Następna</button>
+    </div>
+</div>
+
+<div class="card shadow-sm border-danger mb-4">
+    <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Otwarte Zgłoszenia i Usterki</h5>
+        <a href="{{ url_for('mechanic.export_issues_csv') }}" class="btn btn-sm btn-light py-0 fw-bold text-danger">CSV</a>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" id="issuesTable">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 50px;">ID</th>
+                    <th>Szybowiec</th>
+                    <th>Data zgłoszenia</th>
+                    <th>Status</th>
+                    <th>Opis problemu</th>
+                    <th class="text-end">Akcje</th>
+                </tr>
+            </thead>
+            <tbody id="issuesTableBody">
+                {# UWAGA: Zmieniono zmienną na usterki_otwarte #}
+                {% for u in usterki_otwarte %}
+                <tr>
+                    <td class="text-center text-muted">#{{ u.id_usterka }}</td>
+                    <td class="fw-bold">{{ u.znak_rej }}</td>
+                    <td>{{ u.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        <span class="badge {{ 'bg-danger' if u.status=='otwarta' else ('bg-success' if u.status=='zamknieta' else 'bg-warning') }}">
+                            {{ u.status }}
+                        </span>
+                        {% if u.zm_nazwisko or u.zm_login %}
+                            <div class="small text-muted mt-1" style="font-size: 0.75rem;">
+                                <i class="bi bi-pencil"></i>
+                                {% if u.zm_nazwisko %}
+                                    {{ u.zm_imie[0] }}. {{ u.zm_nazwisko }}
+                                {% else %}
+                                    {{ u.zm_login }}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td>{{ u.opis }}</td>
+                    <td class="text-end">
+                        <a href="{{ url_for('mechanic.details', id_usterka=u.id_usterka) }}" class="btn btn-sm btn-outline-dark">
+                            Szczegóły
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-3">Brak aktywnych usterek.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer d-flex justify-content-between align-items-center py-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="changePage('issues', -1)">Poprzednia</button>
+        <span class="small text-muted" id="issuesPageInfo">Str. 1</span>
+        <button class="btn btn-sm btn-outline-secondary" onclick="changePage('issues', 1)">Następna</button>
+    </div>
+</div>
+
+<div class="card shadow-sm border-success mb-5">
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-archive"></i> Archiwum Napraw (Zamknięte)</h5>
+        <a href="{{ url_for('mechanic.export_closed_issues_csv') }}" class="btn btn-sm btn-light py-0 fw-bold text-success">
+            <i class="bi bi-file-earmark-spreadsheet"></i> CSV
+        </a>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0" id="closedIssuesTable">
+            <thead class="table-light">
+                <tr>
+                    <th style="width: 50px;">ID</th>
+                    <th>Szybowiec</th>
+                    <th>Data zgłoszenia</th>
+                    <th>Status</th>
+                    <th>Opis problemu</th>
+                    <th class="text-end">Akcje</th>
+                </tr>
+            </thead>
+            <tbody id="closedIssuesTableBody">
+                {% for u in usterki_zamkniete %}
+                <tr>
+                    <td class="text-center text-muted">#{{ u.id_usterka }}</td>
+                    <td class="fw-bold">{{ u.znak_rej }}</td>
+                    <td>{{ u.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        <span class="badge bg-success">ZAMKNIĘTA</span>
+                    </td>
+                    <td class="text-muted">{{ u.opis }}</td>
+                    <td class="text-end">
+                        <a href="{{ url_for('mechanic.details', id_usterka=u.id_usterka) }}" class="btn btn-sm btn-outline-success">
+                            Podgląd
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-3">Brak zamkniętych zgłoszeń w archiwum.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card-footer d-flex justify-content-between align-items-center py-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="changePage('closed', -1)">Poprzednia</button>
+        <span class="small text-muted" id="closedPageInfo">Str. 1</span>
+        <button class="btn btn-sm btn-outline-secondary" onclick="changePage('closed', 1)">Następna</button>
+    </div>
+</div>
+
+<script>
+    // Dodano konfigurację dla 'closed'
+    const config = {
+        'fleet': { rowsPerPage: 10, currentPage: 1 },
+        'issues': { rowsPerPage: 10, currentPage: 1 },
+        'closed': { rowsPerPage: 10, currentPage: 1 }
+    };
+
+    function renderTable(type) {
+        // Mapowanie nazw kluczy konfiguracyjnych na ID tabel HTML
+        let tableBodyId = '';
+        if (type === 'fleet') tableBodyId = 'fleetTableBody';
+        if (type === 'issues') tableBodyId = 'issuesTableBody';
+        if (type === 'closed') tableBodyId = 'closedIssuesTableBody';
+
+        const body = document.getElementById(tableBodyId);
+        if (!body) return; // Zabezpieczenie
+
+        const rows = body.getElementsByTagName('tr');
+
+        // Pomijamy wiersz "Brak danych" jeśli jest jedyny
+        if(rows.length === 1 && rows[0].cells.length > 1 && rows[0].innerText.includes("Brak")) {
+             return;
+        }
+
+        const totalRows = rows.length;
+        const totalPages = Math.ceil(totalRows / config[type].rowsPerPage);
+
+        if (config[type].currentPage < 1) config[type].currentPage = 1;
+        if (config[type].currentPage > totalPages && totalPages > 0) config[type].currentPage = totalPages;
+
+        const start = (config[type].currentPage - 1) * config[type].rowsPerPage;
+        const end = start + config[type].rowsPerPage;
+
+        for (let i = 0; i < totalRows; i++) {
+            rows[i].style.display = (i >= start && i < end) ? '' : 'none';
+        }
+
+        // Aktualizacja tekstu paginacji
+        const infoId = type + 'PageInfo'; // np. closedPageInfo
+        const infoElem = document.getElementById(infoId);
+        if (infoElem) {
+             infoElem.innerText = totalPages > 0
+                ? `Str. ${config[type].currentPage} z ${totalPages}`
+                : 'Brak danych';
+        }
+    }
+
+    function changePage(type, delta) {
+        config[type].currentPage += delta;
+        renderTable(type);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderTable('fleet');
+        renderTable('issues');
+        renderTable('closed'); // Inicjalizacja nowej tabeli
+    });
+</script>
+{% endblock %}

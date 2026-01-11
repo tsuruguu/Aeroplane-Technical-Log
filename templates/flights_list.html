@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* 1. NADPISANIE BOOTSTRAPA - wymuszamy pełną szerokość */
+    .container, .container-fluid {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding-left: 5% !important;
+        padding-right: 5% !important;
+    }
+
+    /* 2. TABELA */
+    .table {
+        width: 100% !important;
+        margin-bottom: 0;
+        table-layout: auto;
+    }
+
+    /* 3. KOMÓRKI */
+    .table th, .table td {
+        white-space: nowrap;
+        text-align: center;
+        vertical-align: middle;
+        padding: 12px 8px !important;
+        font-size: 0.85rem;
+    }
+
+    /* 4. KOLUMNA AKCJI */
+    .col-actions {
+        background-color: rgba(0,0,0,0.03);
+        border-left: 1px solid #dee2e6;
+        width: 90px !important;
+    }
+
+    .table-responsive {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        overflow-x: auto;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold m-0">Pokładowy Dziennik Techniczny</h2>
+        <a href="/loty/nowy" class="btn btn-primary shadow-sm">
+            <i class="bi bi-plus-lg"></i> Dodaj nowy lot
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white py-2">
+            <div class="d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#filterPanel" style="cursor: pointer;">
+                <span class="fw-bold text-primary"><i class="bi bi-funnel"></i> Filtrowanie i Opcje</span>
+                <i class="bi bi-chevron-down text-muted"></i>
+            </div>
+        </div>
+
+         <div id="filterPanel" class="collapse {% if args.get('filter_p1') or args.get('filter_szybowiec_id') %}show{% endif %}">
+            <div class="card-body bg-light">
+                <form method="GET" action="{{ url_for('flights.index') }}">
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-3">
+                            <label class="form-label">Szybowiec (Lista)</label>
+                            <select name="filter_szybowiec_id" class="form-select form-select-sm">
+                                <option value="">-- Wszystkie --</option>
+                                {% for s in all_gliders %}
+                                    <option value="{{ s.id_szybowiec }}" {% if args.get('filter_szybowiec_id')|int == s.id_szybowiec %}selected{% endif %}>
+                                        {{ s.znak_rej }} ({{ s.typ }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Model (Tekst)</label>
+                            <input type="text" name="filter_model" class="form-control form-control-sm" value="{{ args.get('filter_model') or '' }}" placeholder="np. Puchacz">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Znak Rej. (Tekst)</label>
+                            <input type="text" name="filter_znak" class="form-control form-control-sm" value="{{ args.get('filter_znak') or '' }}" placeholder="np. SP-1234">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Data Lotu</label>
+                            <input type="date" name="filter_data" class="form-control form-control-sm" value="{{ args.get('filter_data') or '' }}">
+                        </div>
+                        <div class="col-md-2">
+                             <label class="form-label">Ostatnie N lotów</label>
+                             <input type="number" name="limit_last_n" class="form-control form-control-sm" placeholder="np. 100" value="{{ args.get('limit_last_n') or '' }}">
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-3">
+                            <label class="form-label">Pilot 1 (PIC/Uczeń)</label>
+                            <select name="filter_p1" class="form-select form-select-sm">
+                                <option value="">-- Wszyscy --</option>
+                                {% for p in all_pilots %}
+                                    <option value="{{ p.id_pilot }}" {% if args.get('filter_p1')|int == p.id_pilot %}selected{% endif %}>
+                                        {{ p.nazwisko }} {{ p.imie }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Pilot 2 (Instruktor)</label>
+                            <select name="filter_p2" class="form-select form-select-sm">
+                                <option value="">-- Wszyscy --</option>
+                                {% for p in all_pilots %}
+                                    <option value="{{ p.id_pilot }}" {% if args.get('filter_p2')|int == p.id_pilot %}selected{% endif %}>
+                                        {{ p.nazwisko }} {{ p.imie }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                         <div class="col-md-2">
+                            <label class="form-label">Rodzaj załogi</label>
+                            <select name="filter_zaloga" class="form-select form-select-sm">
+                                <option value="">-- Wszystkie --</option>
+                                <option value="SOLO" {% if args.get('filter_zaloga') == 'SOLO' %}selected{% endif %}>Samodzielne</option>
+                                <option value="DUAL" {% if args.get('filter_zaloga') == 'DUAL' %}selected{% endif %}>Załoga (2 os.)</option>
+                            </select>
+                        </div>
+                         <div class="col-md-2">
+                             <label class="form-label">Rodzaj startu</label>
+                             <select name="filter_rodzaj_startu" class="form-select form-select-sm">
+                                 <option value="">-- Wszystkie --</option>
+                                 <option value="wyciagarka" {% if args.get('filter_rodzaj_startu') == 'wyciagarka' %}selected{% endif %}>Wyciągarka</option>
+                                 <option value="samolot" {% if args.get('filter_rodzaj_startu') == 'samolot' %}selected{% endif %}>Samolot</option>
+                                 <option value="grawitacyjny" {% if args.get('filter_rodzaj_startu') == 'grawitacyjny' %}selected{% endif %}>Grawitacyjny</option>
+                             </select>
+                         </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Lotnisko Startu</label>
+                            <select name="filter_start" class="form-select form-select-sm">
+                                <option value="">-- Wszystkie --</option>
+                                {% for l in all_airports %}
+                                    <option value="{{ l.id_lotnisko }}" {% if args.get('filter_start')|int == l.id_lotnisko %}selected{% endif %}>
+                                        {{ l.nazwa }} ({{ l.kod }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                         <div class="col-md-3">
+                            <label class="form-label">Lotnisko Lądowania</label>
+                            <select name="filter_ladowanie" class="form-select form-select-sm">
+                                <option value="">-- Wszystkie --</option>
+                                {% for l in all_airports %}
+                                    <option value="{{ l.id_lotnisko }}" {% if args.get('filter_ladowanie')|int == l.id_lotnisko %}selected{% endif %}>
+                                        {{ l.nazwa }} ({{ l.kod }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Usterka?</label>
+                            <select name="filter_usterka" class="form-select form-select-sm">
+                                <option value="">-- Wszystkie --</option>
+                                <option value="TAK" {% if args.get('filter_usterka') == 'TAK' %}selected{% endif %}>Z Usterką (TAK)</option>
+                                <option value="NIE" {% if args.get('filter_usterka') == 'NIE' %}selected{% endif %}>Sprawne (NIE)</option>
+                            </select>
+                        </div>
+                         <div class="col-md-2 d-flex align-items-end">
+                            <div class="form-check form-switch w-100 mb-1">
+                                <input class="form-check-input" type="checkbox" id="checkDeleted" name="pokaz_usuniete" value="1" {% if args.get('pokaz_usuniete') %}checked{% endif %}>
+                                <label class="form-check-label small" for="checkDeleted">Pokaż usunięte</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row border-top pt-2">
+                         <div class="col-12 text-end">
+                            <a href="{{ url_for('flights.index') }}" class="btn btn-sm btn-outline-secondary me-2">Wyczyść</a>
+                            <button type="submit" class="btn btn-sm btn-success me-2" formaction="{{ url_for('flights.export_csv') }}">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> Pobierz CSV
+                            </button>
+                            <button type="submit" class="btn btn-sm btn-primary px-5 fw-bold">Szukaj</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 bg-transparent">
+        <div class="table-responsive">
+            <table class="table table-hover w-100">
+                <thead class="table-light border-bottom">
+                    <tr>
+                        <th>Data</th>
+                        <th>Znak Rejestracyjny</th>
+                        <th>Model</th>
+                        <th>PIC/Uczeń</th>
+                        <th>SIC/Instruktor</th>
+                        <th>Rodzaj startu</th>
+                        <th>Lotnisko Startu</th>
+                        <th>Lotnisko Ląd.</th>
+                        <th>Start</th>
+                        <th>Lądowanie</th>
+                        <th>Czas (h)</th>
+                        <th>Usterka?</th>
+                        <th>Koszt (PLN)</th>
+                        <th>Płatnik</th>
+                        <th class="col-actions">Akcje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lot in loty %}
+                        <tr class="{{ 'table-danger' if lot.deleted_at else '' }}">
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;">{{ lot.data_lotu }}</td>
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;"><span class="badge bg-light text-dark border">{{ lot.znak_rej }}</span></td>
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;">{{ lot.typ }}</td>
+
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;" class="fw-bold text-primary">
+                                {% set is_owner = current_user.id_pilot in [lot.id_p1, lot.id_p2] %}
+                                {# ZMIANA: Dodano warunek 'or lot.p1_pokazywac_dane' #}
+                                {% if current_user.rola in ['admin','mechanik'] or is_owner or lot.p1_pokazywac_dane %}
+                                    {{ lot.pilot_1 }}
+                                {% else %}
+                                    <span class="text-muted" title="Dane ukryte (RODO)">***</span>
+                                {% endif %}
+                            </td>
+
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;">
+                                {% if lot.pilot_2 %}
+                                    {# ZMIANA: Dodano warunek 'or lot.p2_pokazywac_dane' #}
+                                    {% if current_user.rola in ['admin','mechanik'] or is_owner or lot.p2_pokazywac_dane %}
+                                        {{ lot.pilot_2 }}
+                                    {% else %}
+                                        <span class="text-muted" title="Dane ukryte (RODO)">***</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;">{{ lot.rodzaj_startu }}</td>
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;"><small class="fw-bold">{{ lot.kod_startu }}</small></td>
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;"><small class="fw-bold">{{ lot.kod_ladowania }}</small></td>
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;">{{ lot.dt_start.strftime('%H:%M') if lot.dt_start else '--:--' }}</td>
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;">{{ lot.dt_ladowanie.strftime('%H:%M') if lot.dt_ladowanie else '--:--' }}</td>
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;">{{ "%.2f"|format(lot.czas_h) }}</td>
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;">
+                                <span class="badge {{ 'bg-danger' if lot.ma_usterke == 'TAK' else 'bg-success' }}">
+                                    {{ lot.ma_usterke }}
+                                </span>
+                            </td>
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;">
+                                {% if current_user.rola == 'admin' or current_user.id_pilot in [lot.id_p1, lot.id_p2] %}
+                                    {{ "%.2f"|format(lot.koszt_calkowity) }}
+                                {% else %}
+                                    <span class="text-muted">***</span>
+                                {% endif %}
+                            </td>
+                            <td data-bs-toggle="collapse" data-bs-target="#detail{{ lot.id_lot }}" style="cursor: pointer;">
+                                {% if current_user.rola == 'admin' or current_user.id_pilot in [lot.id_p1, lot.id_p2] %}
+                                    <small>{{ lot.platnik_opis }}</small>
+                                {% else %}
+                                    <span class="text-muted">***</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="col-actions">
+                                {% if current_user.rola == 'admin' or is_owner %}
+                                    <div class="d-flex gap-1 justify-content-center">
+                                        <a href="{{ url_for('flights.edit_flight', id_lot=lot.id_lot) }}"
+                                           class="btn btn-sm btn-primary py-1 px-2 shadow-sm"
+                                           title="Edytuj">
+                                            <i class="bi bi-pencil">Edytuj</i>
+                                        </a>
+
+                                        <form action="{{ url_for('flights.delete_flight', id_lot=lot.id_lot) }}" method="POST"
+                                              onsubmit="return confirm('Czy na pewno chcesz usunąć ten lot? Operacja jest nieodwracalna (soft-delete).');"
+                                              style="margin: 0;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm btn-danger py-1 px-2 shadow-sm" title="Usuń">
+                                                <i class="bi bi-trash">Usuń</i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                            <tr class="collapse {{ 'table-danger' if lot.deleted_at else 'bg-light' }}" id="detail{{ lot.id_lot }}">
+                                <td colspan="15">
+                                    <div class="p-4 text-start">
+                                        <h6 class="border-bottom pb-2 fw-bold text-primary">Szczegóły operacyjne lotu #{{ lot.id_lot }}</h6>
+
+                                        <div class="row mt-3">
+                                            <div class="col-md-4 border-end">
+                                                <p class="mb-2"><strong>🛫 Miejsce startu:</strong> {{ lot.nazwa_startu }} <small class="text-muted">({{ lot.kod_startu }})</small></p>
+                                                <p class="mb-3"><strong>🛬 Miejsce lądowania:</strong> {{ lot.nazwa_ladowania }} <small class="text-muted">({{ lot.kod_ladowania }})</small></p>
+
+                                                <p class="mb-0">
+                                                    <strong>📝 Uwagi:</strong><br>
+                                                    <span class="fst-italic">{{ lot.uwagi if lot.uwagi else "Brak uwag" }}</span>
+                                                </p>
+                                            </div>
+
+                                            <div class="col-md-4 border-end ps-4">
+                                                <h6 class="text-uppercase small fw-bold text-muted mb-3">Skład Załogi</h6>
+
+                                                <div class="mb-2">
+                                                    <i class="bi bi-person-badge"></i> <strong>PIC / Uczeń:</strong><br>
+                                                    {# ZMIANA: Warunek z RODO #}
+                                                    {% if current_user.rola in ['admin','mechanik'] or is_owner or lot.p1_pokazywac_dane %}
+                                                        {{ lot.pilot_1 }}
+                                                        {% if lot.licencja_p1 %}
+                                                            <span class="badge bg-secondary ms-1">Lic: {{ lot.licencja_p1 }}</span>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        *** (RODO)
+                                                    {% endif %}
+                                                </div>
+
+                                                {% if lot.pilot_2 %}
+                                                    <div class="mb-2">
+                                                        <i class="bi bi-person-badge-fill"></i> <strong>SIC / Instruktor:</strong><br>
+                                                        {# ZMIANA: Warunek z RODO #}
+                                                        {% if current_user.rola in ['admin','mechanik'] or is_owner or lot.p2_pokazywac_dane %}
+                                                            {{ lot.pilot_2 }}
+                                                            {% if lot.licencja_p2 %}
+                                                                <span class="badge bg-secondary ms-1">Lic: {{ lot.licencja_p2 }}</span>
+                                                            {% endif %}
+                                                        {% else %}
+                                                            *** (RODO)
+                                                        {% endif %}
+                                                    </div>
+                                                {% else %}  <div class="mb-2 text-muted">
+                                                        <i class="bi bi-person-x"></i> Brak drugiego pilota (Lot samodzielny)
+                                                    </div>
+                                                {% endif %}
+
+                                                {% if lot.nadzorujacy %}
+                                                    <div class="mt-3 p-2 bg-white border border-primary rounded text-primary">
+                                                        <i class="bi bi-eye-fill"></i> <strong>Nadzór z ziemi:</strong><br>
+                                                        {{ lot.nadzorujacy }}
+                                                        {% if lot.licencja_nadzor %}
+                                                            <br><small>Licencja Instr: {{ lot.licencja_nadzor }}</small>
+                                                        {% endif %}
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+
+                                            <div class="col-md-4 ps-4">
+                                                <h6 class="text-uppercase small fw-bold text-muted mb-3">Stan Techniczny</h6>
+                                                {% if lot.ma_usterke == 'TAK' %}
+                                                    <div class="alert alert-danger mb-0">
+                                                        <i class="bi bi-exclamation-triangle-fill"></i> <strong>ZGŁOSZONO USTERKĘ:</strong><br>
+                                                        {{ lot.opis_usterek }}
+                                                    </div>
+                                                {% else %}
+                                                    <div class="text-success">
+                                                        <i class="bi bi-check-circle-fill"></i> Brak zgłoszonych usterek. <br>
+                                                        Szybowiec sprawny.
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if total_pages > 1 %}
+        <div class="pagination-container d-flex justify-content-between align-items-center">
+            <div class="text-muted small">
+                Strona <strong>{{ page }}</strong> z <strong>{{ total_pages }}</strong> (Łącznie: {{ total_records }} lotów)
+            </div>
+
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('flights.index', page=page-1, **args) }}">
+                            <i class="bi bi-chevron-left"></i> Poprzednia
+                        </a>
+                    </li>
+
+                    <li class="page-item ms-2 me-2">
+                        <form action="{{ url_for('flights.index') }}" method="GET" class="d-flex" style="width: 120px;">
+                            {% for key, value in args.items() %}
+                                {% if key != 'page' and value %}
+                                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                                {% endif %}
+                            {% endfor %}
+                            <input type="number" name="page" class="form-control form-control-sm text-center"
+                                   min="1" max="{{ total_pages }}" value="{{ page }}" placeholder="Str.">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary ms-1">Idź</button>
+                        </form>
+                    </li>
+
+                    <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('flights.index', page=page+1, **args) }}">
+                            Następna <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

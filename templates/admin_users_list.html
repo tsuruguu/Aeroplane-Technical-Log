@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-people-fill"></i> Zarządzanie Użytkownikami</h2>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Login / Rola</th>
+                        <th>Imię i Nazwisko</th>
+                        <th>Status Konta</th>
+                        <th>Licencja</th>
+                        <th class="text-end">Saldo</th>
+                        <th class="text-end">Nalot</th>
+                        <th class="text-end">Akcja</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td>{{ u.id_uzytkownik }}</td>
+                        <td>
+                            <strong>{{ u.login }}</strong><br>
+                            <span class="badge bg-secondary">{{ u.rola }}</span>
+                        </td>
+                        <td>
+                            {% if u.imie %}
+                                {{ u.imie }} {{ u.nazwisko }}
+                            {% else %}
+                                <span class="text-muted fst-italic">Brak danych pilota</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.pilot_deleted_at %}
+                                <span class="badge bg-danger">ZABLOKOWANE</span>
+                            {% else %}
+                                <span class="badge bg-success">AKTYWNE</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ u.licencja or '-' }}</td>
+                        <td class="text-end fw-bold {{ 'text-danger' if u.aktualne_saldo < 0 else 'text-success' }}">
+                            {{ "%.2f"|format(u.aktualne_saldo) }} zł
+                        </td>
+                        <td class="text-end font-monospace">
+                            {{ "%.2f"|format(u.wylatane_godziny) }} h
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ url_for('admin.user_edit', id_user=u.id_uzytkownik) }}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-pencil-square"></i> Edytuj
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

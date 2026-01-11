@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-5 mb-4 bg-light rounded-3 shadow-sm text-center">
+    <div class="container-fluid py-5">
+        <h1 class="display-5 fw-bold text-primary">System PDT Aeroklubu</h1>
+        <p class="col-md-12 fs-4 text-muted">Zintegrowany system zarządzania Pokładowym Dziennikiem Technicznym, nalotami oraz finansami pilotów.</p>
+        <hr class="my-4">
+        {% if current_user.is_authenticated %}
+            <p>Jesteś zalogowany jako: <strong>{{ current_user.login }}</strong></p>
+            <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                <a href="/loty" class="btn btn-primary btn-lg px-4 gap-3">Przeglądaj Loty</a>
+                <a href="/raporty" class="btn btn-outline-secondary btn-lg px-4">Zobacz Statystyki</a>
+            </div>
+        {% else %}
+            <p class="text-danger">Zaloguj się, aby uzyskać dostęp do danych operacyjnych.</p>
+            <a href="/login" class="btn btn-primary btn-lg px-4">Zaloguj się teraz</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:18
@@ -20,13 +18,14 @@ services:
     ports:
       - "5000:5000"
     environment:
+      # KLUCZOWA ZMIENNA: Wyłącza buforowanie wyjścia Pythona
+      PYTHONUNBUFFERED: 1
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       SECRET_KEY: ${SECRET_KEY}
       LOG_SECRET_KEY: ${LOG_SECRET_KEY}
     depends_on:
       - db
     volumes:
-      - .:/app # Opcjonalnie do developmentu
       - ./logs:/app/logs 
 
 volumes:

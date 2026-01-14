@@ -4,7 +4,7 @@ Główny plik startowy aplikacji (Application Factory).
 Zawiera funkcję `create_app`, która:
 1. Konfiguruje aplikację Flask.
 2. Inicjalizuje połączenie z bazą danych.
-3. Konfiguruje zabezpieczenia (CSRF, Limiter, Secure Cookies).
+3. Konfiguruje zabezpieczenia (CSRF, Limiter, Secure Cookies, Cryptographic Auditing).
 4. Rejestruje Blueprints (moduły routingu).
 """
 
@@ -35,7 +35,8 @@ def create_app():
     - Inicjalizacja rozszerzeń (ORM, Security, Rate Limiter).
     - Konfiguracja middleware bezpieczeństwa: CSRF Protection, Secure Cookie,
       HSTS (w trybie produkcyjnym).
-    - Rejestracja modułów routingu (Blueprints).
+    - Rejestracja modułów routingu (Blueprints),
+    - Konfiguracja globalnych handlerów błędów (Audit Trails).
 
     Returns:
         Flask: Skonfigurowana aplikacja gotowa do uruchomienia.
@@ -80,6 +81,7 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
+        """Ładowanie użytkownika dla Flask-Login."""
         return Uzytkownik.query.get(int(user_id))
 
     app.register_blueprint(auth_bp)
@@ -90,7 +92,7 @@ def create_app():
 
     @app.route('/')
     def index():
-        from flask import render_template
+        """Strona powitalna."""
         return render_template('index.html')
 
     logging.getLogger("application").info("APP_STARTUP", extra={
@@ -101,6 +103,7 @@ def create_app():
 
     @app.errorhandler(404)
     def page_not_found(e):
+        """Audyt 404: Wykrywanie prób skanowania zasobów (Reconnaissance)."""
         logging.getLogger("security").warning("PAGE_NOT_FOUND", extra={
             'event': 'RECONNAISSANCE',
             'url': request.url,
@@ -111,6 +114,7 @@ def create_app():
 
     @app.errorhandler(500)
     def internal_server_error(e):
+        """Audyt 500: Rejestrowanie awarii krytycznych systemu."""
         logging.getLogger("error").critical("INTERNAL_SERVER_ERROR", exc_info=True, extra={
             'event': 'SYSTEM_FAILURE',
             'url': request.url,

@@ -1,3 +1,11 @@
+"""
+Narzędzie weryfikacyjne dla nienaruszalnego audytu (Log Integrity Verifier).
+
+Skrypt służy do automatycznej analizy plików logów JSON i sprawdzania spójności
+kryptograficznej łańcucha podpisów. Wykrywa edycję treści, usunięcie linii
+oraz błędy wstrzykiwania logów.
+"""
+
 import json
 import hmac
 import hashlib
@@ -11,8 +19,20 @@ SECRET_KEY = os.getenv('LOG_SECRET_KEY').encode()
 
 def verify_log_file(file_path):
     """
-    Weryfikuje integralność łańcucha logów w podanym pliku JSON.
-    """
+        Przeprowadza pełną weryfikację łańcucha logów w pliku.
+
+        Algorytm:
+        1. Odczytuje linię logu.
+        2. Sprawdza, czy pole 'prev_signature' zgadza się z podpisem poprzedniej linii.
+        3. Rekonstruuje payload i przelicza HMAC-SHA256.
+        4. Porównuje wyliczony hash z polem 'signature' w logu.
+
+        Args:
+            file_path (str): Ścieżka do pliku logu (.log / .json).
+
+        Returns:
+            bool: True jeśli łańcuch jest nienaruszony, False w przypadku wykrycia manipulacji.
+        """
     if not SECRET_KEY:
         print("BŁĄD: Brak LOG_SECRET_KEY w środowisku!")
         return False

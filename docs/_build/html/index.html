@@ -8,14 +8,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dokumentacja Systemu PDT &mdash; PDT 1.0 - dokumentacja</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="_static/documentation_options.js?v=331e28ce"></script>
-      <script src="_static/doctools.js?v=9bcbadda"></script>
-      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
       <script src="_static/translations.js?v=2827c288"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Indeks" href="genindex.html" />
@@ -42,9 +42,16 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Moduły:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Spis treści:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">Dokumentacja Techniczna PDT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html">Specyfikacja Techniczna Bazy Danych PDT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#schemat-pdt-core-rdzen-operacyjny">Schemat pdt_core (Rdzeń Operacyjny)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#logika-biznesowa-i-automatyzacja-pdt-core">Logika Biznesowa i Automatyzacja (pdt_core)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#widoki-danych-pdt-core">Widoki Danych (pdt_core)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#schemat-pdt-auth-uwierzytelnianie-i-uprawnienia">Schemat pdt_auth (Uwierzytelnianie i Uprawnienia)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#schemat-pdt-rpt-warstwa-raportowa-i-finansowa">Schemat pdt_rpt (Warstwa Raportowa i Finansowa)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#analiza-normalizacji-i-zaleznosci-funkcyjnych">Analiza Normalizacji i Zależności Funkcyjnych</a></li>
 </ul>
 
         </div>
@@ -74,13 +81,54 @@
   <section id="dokumentacja-systemu-pdt">
 <h1>Dokumentacja Systemu PDT<a class="headerlink" href="#dokumentacja-systemu-pdt" title="Link to this heading"></a></h1>
 <div class="toctree-wrapper compound">
-<p class="caption" role="heading"><span class="caption-text">Moduły:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Spis treści:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">Dokumentacja Techniczna PDT</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#czesc-1-endpointy-i-trasy-routes">Część 1: Endpointy i Trasy (Routes)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="modules.html#czesc-2-rdzen-systemu-core">Część 2: Rdzeń Systemu (Core)</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="database.html">Specyfikacja Techniczna Bazy Danych PDT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="database.html#analiza-przeplywu-danych-dfd">Analiza Przepływu Danych (DFD)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#diagram-relacji-erd">Diagram Relacji (ERD)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#schemat-pdt-core-rdzen-operacyjny">Schemat pdt_core (Rdzeń Operacyjny)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="database.html#slownik-danych-i-ograniczenia">Słownik Danych i Ograniczenia</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#tabela-szybowiec">Tabela: szybowiec</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#tabela-pilot">Tabela: pilot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#tabela-lot">Tabela: lot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#tabela-lot-pilot">Tabela: lot_pilot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#tabela-usterka">Tabela: usterka</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#tabela-naprawa">Tabela: naprawa</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#tabela-przeglad">Tabela: przeglad</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#tabela-wplata">Tabela: wplata</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#logika-biznesowa-i-automatyzacja-pdt-core">Logika Biznesowa i Automatyzacja (pdt_core)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="database.html#funkcje-walidacyjne">Funkcje Walidacyjne</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#wyzwalacze-triggers">Wyzwalacze (Triggers)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#widoki-danych-pdt-core">Widoki Danych (pdt_core)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="database.html#widoki-aktywnych-zasobow">Widoki Aktywnych Zasobów</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#widoki-diagnostyczne-i-techniczne">Widoki Diagnostyczne i Techniczne</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#widoki-statystyczne-naloty">Widoki Statystyczne (Naloty)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#widoki-przegladow">Widoki Przeglądów</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#schemat-pdt-auth-uwierzytelnianie-i-uprawnienia">Schemat pdt_auth (Uwierzytelnianie i Uprawnienia)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="database.html#typy-wyliczeniowe-custom-enums">Typy Wyliczeniowe (Custom ENUMs)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#tabela-uzytkownik">Tabela: uzytkownik</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#wiezy-integralnosci-i-logika-constraints">Więzy Integralności i Logika (Constraints)</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#schemat-pdt-rpt-warstwa-raportowa-i-finansowa">Schemat pdt_rpt (Warstwa Raportowa i Finansowa)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="database.html#widoki-finansowe-i-kalkulacyjne">Widoki Finansowe i Kalkulacyjne</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database.html#dzienniki-i-raporty-operacyjne">Dzienniki i Raporty Operacyjne</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#analiza-normalizacji-i-zaleznosci-funkcyjnych">Analiza Normalizacji i Zależności Funkcyjnych</a></li>
 </ul>
 </div>
 </section>

@@ -3,9 +3,10 @@ Dokumentacja Systemu PDT
 
 .. toctree::
    :maxdepth: 2
-   :caption: Moduły:
+   :caption: Spis treści:
 
    modules
+   database
 
 Indices and tables
 ==================

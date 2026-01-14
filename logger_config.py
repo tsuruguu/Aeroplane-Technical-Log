@@ -1,3 +1,16 @@
+"""
+Konfiguracja zaawansowanego systemu logowania strukturyzowanego (JSON).
+
+Ten moduł implementuje mechanizm 'Log Chaining', który tworzy kryptograficzny
+łańcuch dowodowy dla wszystkich logów systemowych. Wykorzystuje HMAC-SHA256
+do zapewnienia nienaruszalności (Integrity) i niezaprzeczalności (Non-repudiation) wpisów.
+
+Zastosowane standardy:
+- Format: JSON (łatwa integracja z SIEM/Wazuh).
+- Kryptografia: HMAC-SHA256 z soleniem poprzednim podpisem.
+- Separacja: Podział na kanały access, application, security, error.
+"""
+
 import logging
 import hmac
 import hashlib
@@ -17,7 +30,22 @@ last_hashes = {
 
 
 class ChainedJsonFormatter(jsonlogger.JsonFormatter):
+    """
+        Formatter JSON implementujący kryptograficzne łańcuchowanie logów.
+
+        Każdy wpis zawiera podpis (signature) wyliczony z treści bieżącego logu
+        oraz podpisu poprzedniego wpisu. Uniemożliwia to usunięcie lub zmianę
+        linii logu bez wykrycia przerwania ciągłości łańcucha.
+        """
     def add_fields(self, log_record, record, message_dict):
+        """
+                Wzbogaca rekord logu o metadane bezpieczeństwa i podpisy cyfrowe.
+
+                Args:
+                    log_record (dict): Słownik danych logu do sformatowania.
+                    record (logging.LogRecord): Obiekt rekordu logu z biblioteki standardowej.
+                    message_dict (dict): Dodatkowe pola przekazane w parametrze 'extra'.
+                """
         super(ChainedJsonFormatter, self).add_fields(log_record, record, message_dict)
 
         log_record['timestamp'] = datetime.utcnow().isoformat()
@@ -40,34 +68,24 @@ class ChainedJsonFormatter(jsonlogger.JsonFormatter):
         last_hashes[logger_name] = new_hash
 
 
-class SignedJsonFormatter(jsonlogger.JsonFormatter):
-    def add_fields(self, log_record, record, message_dict):
-        super(SignedJsonFormatter, self).add_fields(log_record, record, message_dict)
-
-        if not log_record.get('timestamp'):
-            log_record['timestamp'] = datetime.utcnow().isoformat()
-
-        log_record['level'] = record.levelname
-        payload = f"{log_record['timestamp']}|{log_record['level']}|{log_record.get('message', '')}"
-
-        signature = hmac.new(
-            LOG_SECRET_KEY,
-            msg=payload.encode('utf-8'),
-            digestmod=hashlib.sha256
-        ).hexdigest()
-
-        log_record['signature'] = signature
-
-
 def setup_logging():
+    """
+        Inicjalizuje hierarchię loggerów i konfiguruje handlery plików.
+
+        Tworzy dedykowane pliki dla różnych poziomów bezpieczeństwa:
+        - access.log: Ruch sieciowy i próby połączeń.
+        - application.log: Logika biznesowa (operacje lotnicze).
+        - security.log: Zdarzenia uwierzytelniania i autoryzacji.
+        - error.log: Błędy krytyczne systemu.
+        """
     log_dir = "logs"
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
-    formatter = SignedJsonFormatter('%(timestamp)s %(level)s %(name)s %(message)s')
     formatter = ChainedJsonFormatter('%(timestamp)s %(level)s %(name)s %(message)s')
 
     def create_handler(filename, level):
+        """Pomocnicza funkcja do tworzenia FileHandlera z formatterem."""
         handler = logging.FileHandler(f"{log_dir}/{filename}")
         handler.setFormatter(formatter)
         handler.setLevel(level)

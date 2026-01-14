@@ -8,18 +8,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dokumentacja Techniczna PDT &mdash; PDT 1.0 - dokumentacja</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
       <script src="_static/documentation_options.js?v=331e28ce"></script>
-      <script src="_static/doctools.js?v=9bcbadda"></script>
-      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
       <script src="_static/translations.js?v=2827c288"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Indeks" href="genindex.html" />
     <link rel="search" title="Szukaj" href="search.html" />
+    <link rel="next" title="Specyfikacja Techniczna Bazy Danych PDT" href="database.html" />
     <link rel="prev" title="Dokumentacja Systemu PDT" href="index.html" /> 
 </head>
 
@@ -42,7 +43,7 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Moduły:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Spis treści:</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Dokumentacja Techniczna PDT</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#czesc-1-endpointy-i-trasy-routes">Część 1: Endpointy i Trasy (Routes)</a><ul>
@@ -111,6 +112,13 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="database.html">Specyfikacja Techniczna Bazy Danych PDT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#schemat-pdt-core-rdzen-operacyjny">Schemat pdt_core (Rdzeń Operacyjny)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#logika-biznesowa-i-automatyzacja-pdt-core">Logika Biznesowa i Automatyzacja (pdt_core)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#widoki-danych-pdt-core">Widoki Danych (pdt_core)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#schemat-pdt-auth-uwierzytelnianie-i-uprawnienia">Schemat pdt_auth (Uwierzytelnianie i Uprawnienia)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#schemat-pdt-rpt-warstwa-raportowa-i-finansowa">Schemat pdt_rpt (Warstwa Raportowa i Finansowa)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="database.html#analiza-normalizacji-i-zaleznosci-funkcyjnych">Analiza Normalizacji i Zależności Funkcyjnych</a></li>
 </ul>
 
         </div>
@@ -896,7 +904,7 @@ Wykorzystywane są schematy:
 - <cite>pdt_rpt</cite>: Widoki raportowe (definiowane w SQL, tutaj mapowane tylko w razie potrzeby).</p>
 <dl class="py class">
 <dt class="sig sig-object py" id="models.Lotnisko">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">models.</span></span><span class="sig-name descname"><span class="pre">Lotnisko</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models.html#Lotnisko"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#models.Lotnisko" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">models.</span></span><span class="sig-name descname"><span class="pre">Lotnisko</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models.html#Lotnisko"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#models.Lotnisko" title="Link to this definition"></a></dt>
 <dd><p>Klasy bazowe: <code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></p>
 <p>Reprezentuje lotnisko lub lądowisko.</p>
 <dl class="py attribute">
@@ -924,7 +932,7 @@ Wykorzystywane są schematy:
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="models.Lotnisko.query">
-<span class="sig-name descname"><span class="pre">query</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">t.ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">Query</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#models.Lotnisko.query" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">query</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">t.ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">Query</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#models.Lotnisko.query" title="Link to this definition"></a></dt>
 <dd><p>A SQLAlchemy query for a model. Equivalent to <code class="docutils literal notranslate"><span class="pre">db.session.query(Model)</span></code>. Can be
 customized per-model by overriding <code class="xref py py-attr docutils literal notranslate"><span class="pre">query_class</span></code>.</p>
 <div class="admonition warning">
@@ -938,7 +946,7 @@ customized per-model by overriding <code class="xref py py-attr docutils literal
 
 <dl class="py class">
 <dt class="sig sig-object py" id="models.Pilot">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">models.</span></span><span class="sig-name descname"><span class="pre">Pilot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models.html#Pilot"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#models.Pilot" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">models.</span></span><span class="sig-name descname"><span class="pre">Pilot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models.html#Pilot"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#models.Pilot" title="Link to this definition"></a></dt>
 <dd><p>Klasy bazowe: <code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></p>
 <p>Reprezentuje osobę fizyczną (Pilota, Ucznia, Instruktora).</p>
 <dl class="py attribute">
@@ -990,7 +998,7 @@ customized per-model by overriding <code class="xref py py-attr docutils literal
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="models.Pilot.query">
-<span class="sig-name descname"><span class="pre">query</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">t.ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">Query</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#models.Pilot.query" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">query</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">t.ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">Query</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#models.Pilot.query" title="Link to this definition"></a></dt>
 <dd><p>A SQLAlchemy query for a model. Equivalent to <code class="docutils literal notranslate"><span class="pre">db.session.query(Model)</span></code>. Can be
 customized per-model by overriding <code class="xref py py-attr docutils literal notranslate"><span class="pre">query_class</span></code>.</p>
 <div class="admonition warning">
@@ -1004,7 +1012,7 @@ customized per-model by overriding <code class="xref py py-attr docutils literal
 
 <dl class="py class">
 <dt class="sig sig-object py" id="models.Szybowiec">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">models.</span></span><span class="sig-name descname"><span class="pre">Szybowiec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models.html#Szybowiec"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#models.Szybowiec" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">models.</span></span><span class="sig-name descname"><span class="pre">Szybowiec</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models.html#Szybowiec"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#models.Szybowiec" title="Link to this definition"></a></dt>
 <dd><p>Klasy bazowe: <code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></p>
 <p>Reprezentuje statek powietrzny (szybowiec).</p>
 <dl class="py attribute">
@@ -1020,7 +1028,7 @@ customized per-model by overriding <code class="xref py py-attr docutils literal
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="models.Szybowiec.query">
-<span class="sig-name descname"><span class="pre">query</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">t.ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">Query</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#models.Szybowiec.query" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">query</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">t.ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">Query</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#models.Szybowiec.query" title="Link to this definition"></a></dt>
 <dd><p>A SQLAlchemy query for a model. Equivalent to <code class="docutils literal notranslate"><span class="pre">db.session.query(Model)</span></code>. Can be
 customized per-model by overriding <code class="xref py py-attr docutils literal notranslate"><span class="pre">query_class</span></code>.</p>
 <div class="admonition warning">
@@ -1046,7 +1054,7 @@ customized per-model by overriding <code class="xref py py-attr docutils literal
 
 <dl class="py class">
 <dt class="sig sig-object py" id="models.Uzytkownik">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">models.</span></span><span class="sig-name descname"><span class="pre">Uzytkownik</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models.html#Uzytkownik"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#models.Uzytkownik" title="Link to this definition"></a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">models.</span></span><span class="sig-name descname"><span class="pre">Uzytkownik</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/models.html#Uzytkownik"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#models.Uzytkownik" title="Link to this definition"></a></dt>
 <dd><p>Klasy bazowe: <code class="xref py py-class docutils literal notranslate"><span class="pre">UserMixin</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">Model</span></code></p>
 <p>Reprezentuje konto systemowe do logowania.</p>
 <p>Model tożsamości cyfrowej w schemacie <cite>pdt_auth</cite>.
@@ -1083,7 +1091,7 @@ i mapuje użytkowników na role systemowe oraz profile osobowe (1:1).</p>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="models.Uzytkownik.query">
-<span class="sig-name descname"><span class="pre">query</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">t.ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">Query</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#models.Uzytkownik.query" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">query</span></span><a class="headerlink" href="#models.Uzytkownik.query" title="Link to this definition"></a></dt>
 <dd><p>A SQLAlchemy query for a model. Equivalent to <code class="docutils literal notranslate"><span class="pre">db.session.query(Model)</span></code>. Can be
 customized per-model by overriding <code class="xref py py-attr docutils literal notranslate"><span class="pre">query_class</span></code>.</p>
 <div class="admonition warning">
@@ -1113,25 +1121,25 @@ Tutaj tworzone są instancje rozszerzeń (DB, Login, CSRF, Limiter),
 które następnie są konfigurowane w <cite>app.py</cite> i importowane w modelach/trasach.</p>
 <dl class="py data">
 <dt class="sig sig-object py" id="extensions.csrf">
-<span class="sig-prename descclassname"><span class="pre">extensions.</span></span><span class="sig-name descname"><span class="pre">csrf</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;flask_wtf.csrf.CSRFProtect</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#extensions.csrf" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">extensions.</span></span><span class="sig-name descname"><span class="pre">csrf</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;flask_wtf.csrf.CSRFProtect</span> <span class="pre">object&gt;</span></span><a class="headerlink" href="#extensions.csrf" title="Link to this definition"></a></dt>
 <dd><p>Ochrona przed atakami CSRF (Cross-Site Request Forgery)</p>
 </dd></dl>
 
 <dl class="py data">
 <dt class="sig sig-object py" id="extensions.db">
-<span class="sig-prename descclassname"><span class="pre">extensions.</span></span><span class="sig-name descname"><span class="pre">db</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;SQLAlchemy&gt;</span></em><a class="headerlink" href="#extensions.db" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">extensions.</span></span><span class="sig-name descname"><span class="pre">db</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;SQLAlchemy&gt;</span></span><a class="headerlink" href="#extensions.db" title="Link to this definition"></a></dt>
 <dd><p>Główny obiekt bazy danych SQLAlchemy</p>
 </dd></dl>
 
 <dl class="py data">
 <dt class="sig sig-object py" id="extensions.limiter">
-<span class="sig-prename descclassname"><span class="pre">extensions.</span></span><span class="sig-name descname"><span class="pre">limiter</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;flask_limiter._extension.Limiter</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#extensions.limiter" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">extensions.</span></span><span class="sig-name descname"><span class="pre">limiter</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;flask_limiter._extension.Limiter</span> <span class="pre">object&gt;</span></span><a class="headerlink" href="#extensions.limiter" title="Link to this definition"></a></dt>
 <dd><p>Ochrona przed atakami Brute-Force (Limitowanie zapytań)</p>
 </dd></dl>
 
 <dl class="py data">
 <dt class="sig sig-object py" id="extensions.login_manager">
-<span class="sig-prename descclassname"><span class="pre">extensions.</span></span><span class="sig-name descname"><span class="pre">login_manager</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;flask_login.login_manager.LoginManager</span> <span class="pre">object&gt;</span></em><a class="headerlink" href="#extensions.login_manager" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">extensions.</span></span><span class="sig-name descname"><span class="pre">login_manager</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;flask_login.login_manager.LoginManager</span> <span class="pre">object&gt;</span></span><a class="headerlink" href="#extensions.login_manager" title="Link to this definition"></a></dt>
 <dd><p>Obiekt zarządzający sesją użytkownika</p>
 </dd></dl>
 
@@ -1144,6 +1152,7 @@ które następnie są konfigurowane w <cite>app.py</cite> i importowane w modela
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="index.html" class="btn btn-neutral float-left" title="Dokumentacja Systemu PDT" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Poprzedni</a>
+        <a href="database.html" class="btn btn-neutral float-right" title="Specyfikacja Techniczna Bazy Danych PDT" accesskey="n" rel="next">Następny <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

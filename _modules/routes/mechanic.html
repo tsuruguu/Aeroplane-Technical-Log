@@ -1,0 +1,695 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="pl" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>routes.mechanic &mdash; PDT 1.0 - dokumentacja</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=331e28ce"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=da4973ce"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Indeks" href="../../genindex.html" />
+    <link rel="search" title="Szukaj" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            PDT
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Szukaj" aria-label="Szukaj" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Logika Aplikacji (Python)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Dokumentacja Techniczna PDT</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architektura Danych (SQL)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../database.html">Specyfikacja Techniczna Bazy Danych PDT</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PDT</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Kod modułu</a></li>
+      <li class="breadcrumb-item active">routes.mechanic</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Kod źródłowy modułu routes.mechanic</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Moduł mechanika (CAMO) z pełnym nadzorem technicznym.</span>
+
+<span class="sd">Obsługuje Panel Techniczny: statusy resursów szybowców, zgłaszanie i obsługę usterek,</span>
+<span class="sd">dodawanie przeglądów okresowych oraz dokumentację zdjęciową napraw.</span>
+
+<span class="sd">**System Logowania Audytowego (Maintenance &amp; Safety Audit)**</span>
+
+<span class="sd">Logi w tym module dokumentują krytyczne zmiany w statusie zdatności floty.</span>
+<span class="sd">Szczególny nacisk położono na audyt przesyłania plików oraz resetowanie liczników przeglądów.</span>
+
+<span class="sd">Przykład logu obsługi technicznej (JSON)::</span>
+<span class="sd">{</span>
+<span class="sd">    &quot;timestamp&quot;: &quot;2026-01-11T20:15:30.987Z&quot;,</span>
+<span class="sd">    &quot;level&quot;: &quot;WARNING&quot;,</span>
+<span class="sd">    &quot;event&quot;: &quot;MAINTENANCE_RELEASE&quot;,</span>
+<span class="sd">    &quot;mechanic&quot;: &quot;head_mechanic_01&quot;,</span>
+<span class="sd">    &quot;aircraft_id&quot;: 5,</span>
+<span class="sd">    &quot;inspection_type&quot;: &quot;Annual&quot;,</span>
+<span class="sd">    &quot;src_ip&quot;: &quot;10.0.1.20&quot;,</span>
+<span class="sd">    &quot;signature&quot;: &quot;b7a2d3...&quot;</span>
+<span class="sd">}</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">csv</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">Blueprint</span><span class="p">,</span> <span class="n">render_template</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">redirect</span><span class="p">,</span> <span class="n">url_for</span><span class="p">,</span> <span class="n">flash</span><span class="p">,</span> <span class="n">current_app</span><span class="p">,</span> <span class="n">Response</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask_login</span><span class="w"> </span><span class="kn">import</span> <span class="n">login_required</span><span class="p">,</span> <span class="n">current_user</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="n">text</span>
+<span class="c1"># from database import db</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">extensions</span><span class="w"> </span><span class="kn">import</span> <span class="n">db</span>
+
+<span class="n">mechanic_bp</span> <span class="o">=</span> <span class="n">Blueprint</span><span class="p">(</span><span class="s1">&#39;mechanic&#39;</span><span class="p">,</span> <span class="vm">__name__</span><span class="p">)</span>
+<span class="n">app_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;application&quot;</span><span class="p">)</span>
+<span class="n">security_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;security&quot;</span><span class="p">)</span>
+<span class="n">error_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;error&quot;</span><span class="p">)</span>
+
+<span class="n">ALLOWED_EXTENSIONS</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;png&#39;</span><span class="p">,</span> <span class="s1">&#39;jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;jpeg&#39;</span><span class="p">,</span> <span class="s1">&#39;gif&#39;</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="allowed_file">
+<a class="viewcode-back" href="../../modules.html#routes.mechanic.allowed_file">[dokumentacja]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">allowed_file</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Walidator typu MIME i rozszerzenia pliku.</span>
+
+<span class="sd">        Sprawdza, czy przesyłany plik ma bezpieczne rozszerzenie (zdefiniowane w ``ALLOWED_EXTENSIONS``).</span>
+<span class="sd">        Jest to kluczowa linia obrony przed atakami typu **RCE (Remote Code Execution)**.</span>
+
+<span class="sd">        **Zagrożenie:**</span>
+
+<span class="sd">        Bez tej weryfikacji atakujący mógłby przesłać skrypt wykonywalny (np. ``malware.php``, ``script.py``, ``cmd.exe``)</span>
+<span class="sd">        zamiast zdjęcia. Jeśli serwer pozwoliłby na jego wykonanie, haker przejąłby kontrolę nad systemem.</span>
+
+<span class="sd">        **Mechanizm:**</span>
+
+<span class="sd">        1. Sprawdza obecność kropki w nazwie.</span>
+<span class="sd">        2. Pobiera rozszerzenie (ostatni element po kropce).</span>
+<span class="sd">        3. Konwertuje na małe litery i sprawdza obecność na białej liście (whitelist).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            filename (str): Oryginalna nazwa przesyłanego pliku.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: ``True`` jeśli plik jest bezpiecznym obrazem, w przeciwnym razie ``False``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="s1">&#39;.&#39;</span> <span class="ow">in</span> <span class="n">filename</span> <span class="ow">and</span> <span class="n">filename</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">ALLOWED_EXTENSIONS</span></div>
+
+
+
+<div class="viewcode-block" id="index">
+<a class="viewcode-back" href="../../modules.html#routes.mechanic.index">[dokumentacja]</a>
+<span class="nd">@mechanic_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/mechanik&#39;</span><span class="p">)</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">index</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Pulpit zarządzania zdatnością floty CAMO (Continuing Airworthiness Management Organisation).</span>
+
+<span class="sd">        Agreguje dane techniczne z całego systemu, aby dać mechanikowi natychmiastowy</span>
+<span class="sd">        wgląd w stan zdatności floty.</span>
+
+<span class="sd">        **Algorytm Obliczania Resursów (TTSN / TSO):**</span>
+
+<span class="sd">        Dla każdego szybowca system wykonuje analizę w czasie rzeczywistym:</span>
+<span class="sd">        1. Pobiera stan nalotu całkowitego z widoku zmaterializowanego/widoku raportowego.</span>
+<span class="sd">        2. Identyfikuje datę ostatniego przeglądu okresowego typu &#39;500h&#39; lub &#39;Annual&#39;.</span>
+<span class="sd">        3. Wykonuje agregację SQL: `SUM(EXTRACT(EPOCH FROM (dt_ladowanie - dt_start)))`</span>
+<span class="sd">           dla wszystkich lotów po dacie ostatniego przeglądu, pomijając rekordy usunięte.</span>
+<span class="sd">        4. Oblicza deltę (limit - nalot_od_przegladu) i mapuje na progi alertowe (danger/warning).</span>
+
+<span class="sd">        Wydajność: Zapytania agregujące są wykonywane w pętli dla floty. Przy skali &gt;100 statków</span>
+<span class="sd">        wymagałoby to optymalizacji do pojedynczego zapytania z GROUP BY.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">app_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ACCESS_CAMO_DASHBOARD&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;MAINTENANCE_VIEW&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
+    <span class="p">})</span>
+
+    <span class="n">szybowce_db</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                          SELECT *</span>
+<span class="s2">                                          FROM pdt_core.v_szybowiec_status</span>
+<span class="s2">                                          ORDER BY znak_rej</span>
+<span class="s2">                                          &quot;&quot;&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="n">status_floty</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">szybowce_db</span><span class="p">:</span>
+        <span class="n">sql_total</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT nalot_calk_h FROM pdt_core.v_szybowiec_nalot WHERE id_szybowiec=:sid&quot;</span><span class="p">)</span>
+        <span class="n">nalot_total</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql_total</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;sid&#39;</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">id_szybowiec</span><span class="p">})</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span> <span class="ow">or</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">ostatni_przeglad</span><span class="p">:</span>
+            <span class="n">sql_nalot</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                             SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (dt_ladowanie - dt_start)) / 3600), 0)</span>
+<span class="s2">                             FROM pdt_core.lot</span>
+<span class="s2">                             WHERE id_szybowiec = :sid</span>
+<span class="s2">                               AND data_lotu &gt; :d_przeglad</span>
+<span class="s2">                               AND deleted_at IS NULL</span>
+<span class="s2">                             &quot;&quot;&quot;</span><span class="p">)</span>
+            <span class="n">nalot_od_przegladu</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql_nalot</span><span class="p">,</span>
+                                                    <span class="p">{</span><span class="s1">&#39;sid&#39;</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">id_szybowiec</span><span class="p">,</span> <span class="s1">&#39;d_przeglad&#39;</span><span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">ostatni_przeglad</span><span class="p">})</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">nalot_od_przegladu</span> <span class="o">=</span> <span class="n">nalot_total</span>
+
+        <span class="n">limit_h</span> <span class="o">=</span> <span class="mf">500.0</span>
+        <span class="n">pozostalo</span> <span class="o">=</span> <span class="n">limit_h</span> <span class="o">-</span> <span class="nb">float</span><span class="p">(</span><span class="n">nalot_od_przegladu</span><span class="p">)</span>
+
+        <span class="n">mechanik_str</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">mech_nazwisko</span><span class="p">:</span>
+            <span class="n">mechanik_str</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">mech_imie</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">. </span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">mech_nazwisko</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">elif</span> <span class="n">s</span><span class="o">.</span><span class="n">mech_login</span><span class="p">:</span>
+            <span class="n">mechanik_str</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">mech_login</span>
+
+        <span class="n">status_floty</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s1">&#39;szybowiec&#39;</span><span class="p">:</span> <span class="n">s</span><span class="p">,</span>
+            <span class="s1">&#39;nalot_total&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">nalot_total</span><span class="p">),</span>
+            <span class="s1">&#39;nalot_od_check&#39;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">nalot_od_przegladu</span><span class="p">),</span>
+            <span class="s1">&#39;pozostalo&#39;</span><span class="p">:</span> <span class="n">pozostalo</span><span class="p">,</span>
+            <span class="s1">&#39;alert&#39;</span><span class="p">:</span> <span class="s1">&#39;danger&#39;</span> <span class="k">if</span> <span class="n">pozostalo</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="k">else</span> <span class="p">(</span><span class="s1">&#39;warning&#39;</span> <span class="k">if</span> <span class="n">pozostalo</span> <span class="o">&lt;</span> <span class="mi">10</span> <span class="k">else</span> <span class="s1">&#39;success&#39;</span><span class="p">),</span>
+            <span class="s1">&#39;mechanik_opis&#39;</span><span class="p">:</span> <span class="n">mechanik_str</span>
+        <span class="p">})</span>
+
+    <span class="n">base_sql</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">               SELECT u.*, </span><span class="se">\</span>
+<span class="s2">                      s.znak_rej, </span><span class="se">\</span>
+<span class="s2">                      s.typ       as model, </span><span class="se">\</span>
+<span class="s2">                      l.data_lotu,</span>
+<span class="s2">                      uz.login    as zm_login, </span><span class="se">\</span>
+<span class="s2">                      pi.imie     as zm_imie, </span><span class="se">\</span>
+<span class="s2">                      pi.nazwisko as zm_nazwisko</span>
+<span class="s2">               FROM pdt_core.usterka u</span>
+<span class="s2">                        JOIN pdt_core.szybowiec s USING (id_szybowiec)</span>
+<span class="s2">                        LEFT JOIN pdt_core.lot l USING (id_lot)</span>
+<span class="s2">                        LEFT JOIN pdt_auth.uzytkownik uz ON u.id_zmieniajacy = uz.id_uzytkownik</span>
+<span class="s2">                        LEFT JOIN pdt_core.pilot pi ON uz.id_pilot = pi.id_pilot</span>
+<span class="s2">               WHERE u.deleted_at IS NULL </span><span class="se">\</span>
+<span class="s2">               &quot;&quot;&quot;</span>
+
+    <span class="n">usterki_otwarte</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+        <span class="n">text</span><span class="p">(</span><span class="n">base_sql</span> <span class="o">+</span> <span class="s2">&quot; AND u.status IN (&#39;otwarta&#39;, &#39;w_toku&#39;) ORDER BY u.created_at ASC&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+    <span class="n">usterki_zamkniete</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+        <span class="n">text</span><span class="p">(</span><span class="n">base_sql</span> <span class="o">+</span> <span class="s2">&quot; AND u.status = &#39;zamknieta&#39; ORDER BY u.updated_at DESC&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;mechanic_dashboard.html&#39;</span><span class="p">,</span>
+                           <span class="n">flota</span><span class="o">=</span><span class="n">status_floty</span><span class="p">,</span>
+                           <span class="n">usterki_otwarte</span><span class="o">=</span><span class="n">usterki_otwarte</span><span class="p">,</span>
+                           <span class="n">usterki_zamkniete</span><span class="o">=</span><span class="n">usterki_zamkniete</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="glider_details">
+<a class="viewcode-back" href="../../modules.html#routes.mechanic.glider_details">[dokumentacja]</a>
+<span class="nd">@mechanic_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/mechanik/szybowiec/&lt;int:id_szybowiec&gt;&#39;</span><span class="p">)</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">glider_details</span><span class="p">(</span><span class="n">id_szybowiec</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Cyfrowa Książka Płatowca (Digital Logbook).</span>
+
+<span class="sd">        Agreguje pełną historię eksploatacyjną konkretnego statku powietrznego.</span>
+
+<span class="sd">        **Agregacja Danych:**</span>
+
+<span class="sd">        Widok łączy dane z trzech niezależnych źródeł w jedną spójną kartę:</span>
+<span class="sd">        1.  `pdt_core.v_szybowiec_nalot`: Pobiera sumaryczny czas lotu (Total Time Since New).</span>
+<span class="sd">        2.  `pdt_core.przeglad`: Historię obsługi technicznej (kto i kiedy wykonał przegląd).</span>
+<span class="sd">        3.  `pdt_core.usterka`: Historię awarii i napraw.</span>
+
+<span class="sd">        Dzięki temu mechanik ma pełny obraz &quot;zdrowia&quot; szybowca przed podjęciem decyzji o dopuszczeniu do lotu.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            id_szybowiec (int): Unikalny identyfikator szybowca w bazie.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">app_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;VIEW_GLIDER_LOGBOOK&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;DATA_READ&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+        <span class="s1">&#39;glider_id&#39;</span><span class="p">:</span> <span class="n">id_szybowiec</span><span class="p">,</span>
+        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
+    <span class="p">})</span>
+
+    <span class="n">szybowiec</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT s.*, vn.nalot_calk_h </span>
+<span class="s2">        FROM pdt_core.szybowiec s</span>
+<span class="s2">        LEFT JOIN pdt_core.v_szybowiec_nalot vn USING(id_szybowiec)</span>
+<span class="s2">        WHERE s.id_szybowiec = :id</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">id_szybowiec</span><span class="p">})</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">szybowiec</span><span class="p">:</span>
+        <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Nie znaleziono szybowca.&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;mechanic.index&#39;</span><span class="p">))</span>
+
+    <span class="n">przeglady</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT p.*, uz.login, pi.imie, pi.nazwisko</span>
+<span class="s2">        FROM pdt_core.przeglad p</span>
+<span class="s2">        LEFT JOIN pdt_auth.uzytkownik uz ON p.id_mechanik = uz.id_uzytkownik</span>
+<span class="s2">        LEFT JOIN pdt_core.pilot pi ON uz.id_pilot = pi.id_pilot</span>
+<span class="s2">        WHERE p.id_szybowiec = :id AND p.deleted_at IS NULL</span>
+<span class="s2">        ORDER BY p.data_przegladu DESC</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">id_szybowiec</span><span class="p">})</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="n">usterki</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT u.*, l.data_lotu, </span>
+<span class="s2">               (SELECT COUNT(*) FROM pdt_core.naprawa n WHERE n.id_usterka = u.id_usterka) as ile_napraw</span>
+<span class="s2">        FROM pdt_core.usterka u</span>
+<span class="s2">        LEFT JOIN pdt_core.lot l USING(id_lot)</span>
+<span class="s2">        WHERE u.id_szybowiec = :id AND u.deleted_at IS NULL</span>
+<span class="s2">        ORDER BY u.created_at DESC</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">id_szybowiec</span><span class="p">})</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;mechanic_glider_details.html&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">szybowiec</span><span class="p">,</span> <span class="n">przeglady</span><span class="o">=</span><span class="n">przeglady</span><span class="p">,</span> <span class="n">usterki</span><span class="o">=</span><span class="n">usterki</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="export_fleet_csv">
+<a class="viewcode-back" href="../../modules.html#routes.mechanic.export_fleet_csv">[dokumentacja]</a>
+<span class="nd">@mechanic_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/mechanik/export/flota&#39;</span><span class="p">)</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">export_fleet_csv</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generowanie raportu stanu floty (CAMO Report).</span>
+
+<span class="sd">        Tworzy plik CSV zawierający kluczowe wskaźniki zdatności dla wszystkich szybowców.</span>
+<span class="sd">        Dane te są często wymagane do raportowania do urzędu lotnictwa cywilnego (ULC)</span>
+<span class="sd">        lub dla zarządu aeroklubu w celu planowania budżetu na remonty.</span>
+
+<span class="sd">        **Zawartość Raportu:**</span>
+
+<span class="sd">        - Znaki rejestracyjne i typ.</span>
+<span class="sd">        - Całkowity nalot (TTSN).</span>
+<span class="sd">        - Data i rodzaj ostatniego przeglądu (np. ARC, 50h, 500h).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Response: Plik `flota_status.csv` gotowy do pobrania.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">security_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;FLEET_STATUS_EXPORT&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;DATA_EXPORT&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+        <span class="s1">&#39;report_type&#39;</span><span class="p">:</span> <span class="s1">&#39;FLEET_STATUS&#39;</span>
+    <span class="p">})</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                   SELECT s.znak_rej,</span>
+<span class="s2">                                          s.typ,</span>
+<span class="s2">                                          vn.nalot_calk_h,</span>
+<span class="s2">                                          p.data_przegladu,</span>
+<span class="s2">                                          p.typ as typ_przegladu</span>
+<span class="s2">                                   FROM pdt_core.szybowiec s</span>
+<span class="s2">                                            LEFT JOIN pdt_core.v_szybowiec_nalot vn USING (id_szybowiec)</span>
+<span class="s2">                                            LEFT JOIN pdt_core.v_szybowiec_ostatni_przeglad p USING (id_szybowiec)</span>
+<span class="s2">                                   WHERE s.deleted_at IS NULL</span>
+<span class="s2">                                   ORDER BY s.znak_rej</span>
+<span class="s2">                                   &quot;&quot;&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="n">output</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;;&#39;</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;Znak Rej.&#39;</span><span class="p">,</span> <span class="s1">&#39;Typ&#39;</span><span class="p">,</span> <span class="s1">&#39;Nalot Całkowity (h)&#39;</span><span class="p">,</span> <span class="s1">&#39;Data Ostatniego Przeglądu&#39;</span><span class="p">,</span> <span class="s1">&#39;Typ Przeglądu&#39;</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+        <span class="n">nalot</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">row</span><span class="o">.</span><span class="n">nalot_calk_h</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">row</span><span class="o">.</span><span class="n">nalot_calk_h</span> <span class="k">else</span> <span class="s2">&quot;0,00&quot;</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">row</span><span class="o">.</span><span class="n">znak_rej</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">typ</span><span class="p">,</span> <span class="n">nalot</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">data_przegladu</span> <span class="ow">or</span> <span class="s1">&#39;Brak&#39;</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">typ_przegladu</span> <span class="ow">or</span> <span class="s1">&#39;-&#39;</span><span class="p">])</span>
+
+    <span class="n">output</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8-sig&#39;</span><span class="p">),</span>
+        <span class="n">mimetype</span><span class="o">=</span><span class="s2">&quot;text/csv&quot;</span><span class="p">,</span>
+        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Content-Disposition&quot;</span><span class="p">:</span> <span class="s2">&quot;attachment;filename=flota_status.csv&quot;</span><span class="p">}</span>
+    <span class="p">)</span></div>
+
+
+
+
+<div class="viewcode-block" id="export_issues_csv">
+<a class="viewcode-back" href="../../modules.html#routes.mechanic.export_issues_csv">[dokumentacja]</a>
+<span class="nd">@mechanic_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/mechanik/export/usterki&#39;</span><span class="p">)</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">export_issues_csv</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Eksport listy zadań bieżących (Work Order).</span>
+
+<span class="sd">        Generuje zestawienie wszystkich otwartych usterek (status &#39;otwarta&#39; lub &#39;w_toku&#39;).</span>
+<span class="sd">        Służy jako &quot;lista zadań&quot; dla mechaników na dany dzień lub tydzień.</span>
+<span class="sd">        Plik zawiera daty zgłoszeń, co pozwala priorytetyzować naprawy według czasu oczekiwania.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Response: Plik `otwarte_usterki.csv`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">security_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;EXPORT_MAINTENANCE_TASKS&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;DATA_EXPORT&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+        <span class="s1">&#39;scope&#39;</span><span class="p">:</span> <span class="s1">&#39;OPEN_ISSUES&#39;</span>
+    <span class="p">})</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                   SELECT u.id_usterka, s.znak_rej, u.status, u.opis, u.created_at</span>
+<span class="s2">                                   FROM pdt_core.usterka u</span>
+<span class="s2">                                            JOIN pdt_core.szybowiec s USING (id_szybowiec)</span>
+<span class="s2">                                   WHERE u.status != &#39;zamknieta&#39;</span>
+<span class="s2">                                     AND u.deleted_at IS NULL</span>
+<span class="s2">                                   ORDER BY u.created_at ASC</span>
+<span class="s2">                                   &quot;&quot;&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="n">output</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;;&#39;</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;ID&#39;</span><span class="p">,</span> <span class="s1">&#39;Znak Rej.&#39;</span><span class="p">,</span> <span class="s1">&#39;Data Zgłoszenia&#39;</span><span class="p">,</span> <span class="s1">&#39;Status&#39;</span><span class="p">,</span> <span class="s1">&#39;Opis&#39;</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">row</span><span class="o">.</span><span class="n">id_usterka</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">znak_rej</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">),</span> <span class="n">row</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">opis</span><span class="p">])</span>
+
+    <span class="n">output</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8-sig&#39;</span><span class="p">),</span>
+        <span class="n">mimetype</span><span class="o">=</span><span class="s2">&quot;text/csv&quot;</span><span class="p">,</span>
+        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Content-Disposition&quot;</span><span class="p">:</span> <span class="s2">&quot;attachment;filename=otwarte_usterki.csv&quot;</span><span class="p">}</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="export_closed_issues_csv">
+<a class="viewcode-back" href="../../modules.html#routes.mechanic.export_closed_issues_csv">[dokumentacja]</a>
+<span class="nd">@mechanic_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/mechanik/export/usterki_zamkniete&#39;</span><span class="p">)</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">export_closed_issues_csv</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Archiwizacja napraw (Maintenance History Export).</span>
+
+<span class="sd">        Pobiera historyczne (zamknięte) zgłoszenia. Jest to kluczowe dla zachowania ciągłości</span>
+<span class="sd">        dokumentacji technicznej (np. przy sprzedaży szybowca, nowy właściciel chce widzieć</span>
+<span class="sd">        historię napraw).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Response: Plik `archiwum_napraw.csv`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">security_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;EXPORT_REPAIR_ARCHIVE&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;DATA_EXPORT&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+        <span class="s1">&#39;scope&#39;</span><span class="p">:</span> <span class="s1">&#39;CLOSED_ISSUES&#39;</span>
+    <span class="p">})</span>
+
+    <span class="n">data</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                   SELECT u.id_usterka,</span>
+<span class="s2">                                          s.znak_rej,</span>
+<span class="s2">                                          u.created_at,</span>
+<span class="s2">                                          u.updated_at, -- To jest data zamknięcia (ostatniej zmiany)</span>
+<span class="s2">                                          u.opis</span>
+<span class="s2">                                   FROM pdt_core.usterka u</span>
+<span class="s2">                                            JOIN pdt_core.szybowiec s USING (id_szybowiec)</span>
+<span class="s2">                                   WHERE u.status = &#39;zamknieta&#39;</span>
+<span class="s2">                                     AND u.deleted_at IS NULL</span>
+<span class="s2">                                   ORDER BY u.updated_at DESC</span>
+<span class="s2">                                   &quot;&quot;&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="n">output</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;;&#39;</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;ID&#39;</span><span class="p">,</span> <span class="s1">&#39;Znak Rej.&#39;</span><span class="p">,</span> <span class="s1">&#39;Data Zgłoszenia&#39;</span><span class="p">,</span> <span class="s1">&#39;Data Zamknięcia&#39;</span><span class="p">,</span> <span class="s1">&#39;Opis Usterki&#39;</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+        <span class="n">zgloszenie</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">created_at</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">row</span><span class="o">.</span><span class="n">created_at</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">zamkniecie</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">updated_at</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">row</span><span class="o">.</span><span class="n">updated_at</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">row</span><span class="o">.</span><span class="n">id_usterka</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">znak_rej</span><span class="p">,</span> <span class="n">zgloszenie</span><span class="p">,</span> <span class="n">zamkniecie</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">opis</span><span class="p">])</span>
+
+    <span class="n">output</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8-sig&#39;</span><span class="p">),</span>
+        <span class="n">mimetype</span><span class="o">=</span><span class="s2">&quot;text/csv&quot;</span><span class="p">,</span>
+        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Content-Disposition&quot;</span><span class="p">:</span> <span class="s2">&quot;attachment;filename=archiwum_napraw.csv&quot;</span><span class="p">}</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="details">
+<a class="viewcode-back" href="../../modules.html#routes.mechanic.details">[dokumentacja]</a>
+<span class="nd">@mechanic_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/mechanik/usterka/&lt;int:id_usterka&gt;&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;GET&#39;</span><span class="p">,</span> <span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">details</span><span class="p">(</span><span class="n">id_usterka</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Obsługa cyklu życia usterki technicznej (Workflow Naprawczy).</span>
+
+<span class="sd">        Zarządza pełnym procesem obsługi zgłoszenia: od otwarcia, przez diagnostykę, aż do zamknięcia.</span>
+
+<span class="sd">        **Śledzenie Zmian (Audit Log):**</span>
+
+<span class="sd">        Każda interwencja mechanika (dodanie opisu, wymiana części) jest rejestrowana w tabeli</span>
+<span class="sd">        `pdt_core.naprawa` z sygnaturą czasową i ID użytkownika. Pozwala to odtworzyć</span>
+<span class="sd">        historię naprawy w przypadku późniejszych problemów (np. w dochodzeniu powypadkowym).</span>
+
+<span class="sd">        **Dokumentacja Cyfrowa:**</span>
+
+<span class="sd">        Obsługuje bezpieczny upload zdjęć dowodowych. Pliki otrzymują losowe nazwy UUID,</span>
+<span class="sd">        aby zapobiec nadpisywaniu plików oraz atakom typu Path Traversal lub wykonywaniu złośliwych skryptów.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">usterka</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                      SELECT u.*,</span>
+<span class="s2">                                             s.znak_rej,</span>
+<span class="s2">                                             s.typ                       as model,</span>
+<span class="s2">                                             l.data_lotu,</span>
+<span class="s2">                                             p.imie || &#39; &#39; || p.nazwisko as zglaszajacy,</span>
+<span class="s2">                                             uz.login                    as zm_login,</span>
+<span class="s2">                                             pi.imie                     as zm_imie,</span>
+<span class="s2">                                             pi.nazwisko                 as zm_nazwisko</span>
+<span class="s2">                                      FROM pdt_core.usterka u</span>
+<span class="s2">                                               JOIN pdt_core.szybowiec s USING (id_szybowiec)</span>
+<span class="s2">                                               LEFT JOIN pdt_core.lot l USING (id_lot)</span>
+<span class="s2">                                               LEFT JOIN pdt_core.lot_pilot lp ON l.id_lot = lp.id_lot AND lp.rola = &#39;PIC&#39;</span>
+<span class="s2">                                               LEFT JOIN pdt_core.pilot p ON lp.id_pilot = p.id_pilot</span>
+<span class="s2">                                               LEFT JOIN pdt_auth.uzytkownik uz ON u.id_zmieniajacy = uz.id_uzytkownik</span>
+<span class="s2">                                               LEFT JOIN pdt_core.pilot pi ON uz.id_pilot = pi.id_pilot</span>
+<span class="s2">                                      WHERE u.id_usterka = :id</span>
+<span class="s2">                                      &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">id_usterka</span><span class="p">})</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+
+    <span class="n">naprawy</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                      SELECT n.*, u.login as mechanik_login</span>
+<span class="s2">                                      FROM pdt_core.naprawa n</span>
+<span class="s2">                                               JOIN pdt_auth.uzytkownik u ON n.id_mechanik = u.id_uzytkownik</span>
+<span class="s2">                                      WHERE n.id_usterka = :id</span>
+<span class="s2">                                      ORDER BY n.data_naprawy DESC</span>
+<span class="s2">                                      &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">id_usterka</span><span class="p">})</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;POST&#39;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;admin&#39;</span><span class="p">,</span> <span class="s1">&#39;mechanik&#39;</span><span class="p">]:</span>
+            <span class="n">security_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;UNAUTHORIZED_MAINTENANCE_ATTEMPT&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;ACCESS_VIOLATION&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+                <span class="s1">&#39;issue_id&#39;</span><span class="p">:</span> <span class="n">id_usterka</span><span class="p">,</span>
+                <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
+            <span class="p">})</span>
+            <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Brak uprawnień.&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;mechanic.index&#39;</span><span class="p">))</span>
+
+        <span class="n">action</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;action&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">action</span> <span class="o">==</span> <span class="s1">&#39;update_status&#39;</span><span class="p">:</span>
+            <span class="n">nowy_status</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;status&#39;</span><span class="p">)</span>
+            <span class="n">opis_naprawy</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;opis_prac&#39;</span><span class="p">)</span>
+            <span class="n">czesci</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;czesci&#39;</span><span class="p">)</span>
+
+            <span class="n">app_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ISSUE_STATUS_UPDATE&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;MAINTENANCE_WORKFLOW&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;mechanic&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+                <span class="s1">&#39;issue_id&#39;</span><span class="p">:</span> <span class="n">id_usterka</span><span class="p">,</span>
+                <span class="s1">&#39;new_status&#39;</span><span class="p">:</span> <span class="n">nowy_status</span><span class="p">,</span>
+                <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
+            <span class="p">})</span>
+
+            <span class="k">if</span> <span class="n">opis_naprawy</span><span class="p">:</span>
+                <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                        INSERT INTO pdt_core.naprawa (id_usterka, id_mechanik, opis_prac, wymienione_czesci)</span>
+<span class="s2">                                        VALUES (:uid, :mid, :opis, :czesci)</span>
+<span class="s2">                                        &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span>
+                                       <span class="s1">&#39;uid&#39;</span><span class="p">:</span> <span class="n">id_usterka</span><span class="p">,</span>
+                                       <span class="s1">&#39;mid&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_uzytkownik</span><span class="p">,</span>
+                                       <span class="s1">&#39;opis&#39;</span><span class="p">:</span> <span class="n">opis_naprawy</span><span class="p">,</span>
+                                       <span class="s1">&#39;czesci&#39;</span><span class="p">:</span> <span class="n">czesci</span>
+                                   <span class="p">})</span>
+
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                    UPDATE pdt_core.usterka</span>
+<span class="s2">                                    SET status         = :s,</span>
+<span class="s2">                                        id_zmieniajacy = :mid,</span>
+<span class="s2">                                        updated_at     = NOW()</span>
+<span class="s2">                                    WHERE id_usterka = :id</span>
+<span class="s2">                                    &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;s&#39;</span><span class="p">:</span> <span class="n">nowy_status</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">id_usterka</span><span class="p">,</span> <span class="s1">&#39;mid&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_uzytkownik</span><span class="p">})</span>
+
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Zaktualizowano status naprawy.&#39;</span><span class="p">,</span> <span class="s1">&#39;success&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;mechanic.details&#39;</span><span class="p">,</span> <span class="n">id_usterka</span><span class="o">=</span><span class="n">id_usterka</span><span class="p">))</span>
+
+        <span class="k">elif</span> <span class="n">action</span> <span class="o">==</span> <span class="s1">&#39;upload_photo&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s1">&#39;file&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
+                <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Nie wybrano pliku.&#39;</span><span class="p">,</span> <span class="s1">&#39;warning&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">file</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s1">&#39;file&#39;</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">file</span> <span class="ow">and</span> <span class="n">allowed_file</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">):</span>
+                    <span class="n">ext</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+                    <span class="n">unique_filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;usterka_</span><span class="si">{</span><span class="n">id_usterka</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">ext</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">current_app</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s1">&#39;UPLOAD_FOLDER&#39;</span><span class="p">],</span> <span class="n">unique_filename</span><span class="p">)</span>
+                    <span class="n">file</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+                    <span class="n">security_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;FILE_UPLOAD_MAINTENANCE&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;FILE_UPLOAD&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+                        <span class="s1">&#39;original_name&#39;</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span>
+                        <span class="s1">&#39;stored_name&#39;</span><span class="p">:</span> <span class="n">unique_filename</span><span class="p">,</span>
+                        <span class="s1">&#39;issue_id&#39;</span><span class="p">:</span> <span class="n">id_usterka</span><span class="p">,</span>
+                        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
+                    <span class="p">})</span>
+
+                    <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                            UPDATE pdt_core.usterka</span>
+<span class="s2">                                            SET zdjecie_sciezka = :p,</span>
+<span class="s2">                                                id_zmieniajacy  = :mid,</span>
+<span class="s2">                                                updated_at      = NOW()</span>
+<span class="s2">                                            WHERE id_usterka = :id</span>
+<span class="s2">                                            &quot;&quot;&quot;</span><span class="p">),</span>
+                                       <span class="p">{</span><span class="s1">&#39;p&#39;</span><span class="p">:</span> <span class="n">unique_filename</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">id_usterka</span><span class="p">,</span> <span class="s1">&#39;mid&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_uzytkownik</span><span class="p">})</span>
+
+                    <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+                    <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Zdjęcie dodano pomyślnie.&#39;</span><span class="p">,</span> <span class="s1">&#39;success&#39;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">security_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;MALICIOUS_UPLOAD_ATTEMPT&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;UPLOAD_FAILURE_SECURITY&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+                        <span class="s1">&#39;uploaded_file_name&#39;</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">filename</span> <span class="k">if</span> <span class="n">file</span> <span class="k">else</span> <span class="s2">&quot;None&quot;</span><span class="p">,</span>
+                        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
+                    <span class="p">})</span>
+                    <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Nieprawidłowy plik.&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;mechanic.details&#39;</span><span class="p">,</span> <span class="n">id_usterka</span><span class="o">=</span><span class="n">id_usterka</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;mechanic_details.html&#39;</span><span class="p">,</span> <span class="n">usterka</span><span class="o">=</span><span class="n">usterka</span><span class="p">,</span> <span class="n">naprawy</span><span class="o">=</span><span class="n">naprawy</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="add_inspection">
+<a class="viewcode-back" href="../../modules.html#routes.mechanic.add_inspection">[dokumentacja]</a>
+<span class="nd">@mechanic_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/mechanik/przeglad/dodaj&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">add_inspection</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Rejestracja wykonania czynności obsługowej (Maintenance Release).</span>
+
+<span class="sd">        Jest to krytyczna operacja systemowa, która wpływa na obliczanie resursów.</span>
+
+<span class="sd">        **Logika Biznesowa (Reset Liczników):**</span>
+
+<span class="sd">        Wprowadzenie nowego przeglądu do bazy danych (`INSERT INTO pdt_core.przeglad`)</span>
+<span class="sd">        powoduje, że algorytm w `mechanic.index` zacznie liczyć godziny &quot;od przeglądu&quot;</span>
+<span class="sd">        od nowej daty. Innymi słowy – funkcja ta &quot;zeruje licznik&quot; do następnego przeglądu okresowego.</span>
+
+<span class="sd">        **Wymagania:**</span>
+
+<span class="sd">        Dostępna tylko dla ról technicznych (`admin`, `mechanik`), ponieważ błędny wpis</span>
+<span class="sd">        może doprowadzić do przekroczenia resursu i utraty ubezpieczenia statku.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;admin&#39;</span><span class="p">,</span> <span class="s1">&#39;mechanik&#39;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;index&#39;</span><span class="p">))</span>
+
+    <span class="n">id_szybowiec</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id_szybowiec&#39;</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;data_przegladu&#39;</span><span class="p">)</span>
+    <span class="n">typ</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;typ&#39;</span><span class="p">)</span>
+    <span class="n">uwagi</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;uwagi&#39;</span><span class="p">)</span>
+
+    <span class="n">app_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;MAINTENANCE_RELEASE_RECORDED&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;AIRWORTHINESS_DIRECTIVE&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;mechanic&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+        <span class="s1">&#39;aircraft_id&#39;</span><span class="p">:</span> <span class="n">id_szybowiec</span><span class="p">,</span>
+        <span class="s1">&#39;inspection_type&#39;</span><span class="p">:</span> <span class="n">typ</span><span class="p">,</span>
+        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+        <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Zatwierdzono przegląd typu </span><span class="si">{</span><span class="n">typ</span><span class="si">}</span><span class="s2"> - reset resursów&quot;</span>
+    <span class="p">})</span>
+
+    <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                            INSERT INTO pdt_core.przeglad (id_szybowiec, data_przegladu, typ, uwagi, id_mechanik)</span>
+<span class="s2">                            VALUES (:id, :dt, :typ, :uwagi, :mid)</span>
+<span class="s2">                            &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span>
+                           <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">id_szybowiec</span><span class="p">,</span> <span class="s1">&#39;dt&#39;</span><span class="p">:</span> <span class="n">data</span><span class="p">,</span> <span class="s1">&#39;typ&#39;</span><span class="p">:</span> <span class="n">typ</span><span class="p">,</span> <span class="s1">&#39;uwagi&#39;</span><span class="p">:</span> <span class="n">uwagi</span><span class="p">,</span>
+                           <span class="s1">&#39;mid&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_uzytkownik</span>
+                       <span class="p">})</span>
+    <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+    <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Dodano nowy przegląd. Licznik resursu zresetowany.&#39;</span><span class="p">,</span> <span class="s1">&#39;success&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;mechanic.index&#39;</span><span class="p">))</span></div>
+
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Prawa zastrzeżone 2026, Dobrawa Rumszewicz.</p>
+  </div>
+
+  Zbudowano w <a href="https://www.sphinx-doc.org/">Sphinx</a> używając
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    dostarczone przez <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,491 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="pl" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>routes.auth &mdash; PDT 1.0 - dokumentacja</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=331e28ce"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=da4973ce"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Indeks" href="../../genindex.html" />
+    <link rel="search" title="Szukaj" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            PDT
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Szukaj" aria-label="Szukaj" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Logika Aplikacji (Python)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Dokumentacja Techniczna PDT</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architektura Danych (SQL)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../database.html">Specyfikacja Techniczna Bazy Danych PDT</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PDT</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Kod modułu</a></li>
+      <li class="breadcrumb-item active">routes.auth</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Kod źródłowy modułu routes.auth</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Moduł uwierzytelniania (Authentication) z systemem Audit Trail.</span>
+
+<span class="sd">Obsługuje logowanie, wylogowywanie, rejestrację nowych użytkowników</span>
+<span class="sd">oraz zarządzanie profilem.</span>
+
+<span class="sd">**System Logowania i Audytu (Cybersecurity Compliance)**</span>
+
+<span class="sd">Wszystkie zdarzenia w tym module są logowane do kanału `security` w formacie JSON</span>
+<span class="sd">z cyfrowym podpisem HMAC-SHA256, co zapewnia integralność logów (nienaruszalność).</span>
+
+<span class="sd">Przykład logu bezpieczeństwa (JSON)::</span>
+<span class="sd">{</span>
+<span class="sd">    &quot;timestamp&quot;: &quot;2026-01-11T18:20:01.123Z&quot;,</span>
+<span class="sd">    &quot;level&quot;: &quot;WARNING&quot;,</span>
+<span class="sd">    &quot;event&quot;: &quot;AUTH_FAILURE&quot;,</span>
+<span class="sd">    &quot;user_attempted&quot;: &quot;admin&quot;,</span>
+<span class="sd">    &quot;src_ip&quot;: &quot;192.168.1.15&quot;,</span>
+<span class="sd">    &quot;message&quot;: &quot;Błędna próba logowania: nieprawidłowe hasło&quot;,</span>
+<span class="sd">    &quot;signature&quot;: &quot;e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855&quot;</span>
+<span class="sd">}</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">secrets</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">string</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">Blueprint</span><span class="p">,</span> <span class="n">render_template</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">redirect</span><span class="p">,</span> <span class="n">url_for</span><span class="p">,</span> <span class="n">flash</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask_login</span><span class="w"> </span><span class="kn">import</span> <span class="n">login_user</span><span class="p">,</span> <span class="n">logout_user</span><span class="p">,</span> <span class="n">login_required</span><span class="p">,</span> <span class="n">current_user</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">werkzeug.security</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_password_hash</span><span class="p">,</span> <span class="n">generate_password_hash</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">extensions</span><span class="w"> </span><span class="kn">import</span> <span class="n">limiter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Uzytkownik</span>
+<span class="c1"># from database import db</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">extensions</span><span class="w"> </span><span class="kn">import</span> <span class="n">db</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="n">text</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+
+<span class="n">auth_bp</span> <span class="o">=</span> <span class="n">Blueprint</span><span class="p">(</span><span class="s1">&#39;auth&#39;</span><span class="p">,</span> <span class="vm">__name__</span><span class="p">)</span>
+<span class="n">security_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;security&quot;</span><span class="p">)</span>
+<span class="n">app_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;application&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="login">
+<a class="viewcode-back" href="../../modules.html#routes.auth.login">[dokumentacja]</a>
+<span class="nd">@auth_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/login&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;GET&#39;</span><span class="p">,</span><span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="nd">@limiter</span><span class="o">.</span><span class="n">limit</span><span class="p">(</span><span class="s2">&quot;5 per minute&quot;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">login</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Proces uwierzytelniania z wielowarstwowym mechanizmem obronnym.</span>
+
+<span class="sd">        **Warstwy bezpieczeństwa**</span>
+
+<span class="sd">        1. Rate Limiting: Ograniczenie prób logowania na poziomie IP (Flask-Limiter)</span>
+<span class="sd">           w celu mitigacji ataków Brute-force i Dictionary.</span>
+<span class="sd">        2. Kryptografia: Weryfikacja hasła funkcją `check_password_hash` z solą</span>
+<span class="sd">           (odporność na Rainbow Tables).</span>
+<span class="sd">        3. Stan konta: Weryfikacja logiczna flagi `deleted_at` w profilu pilota</span>
+<span class="sd">           (tzw. Administrative Lockout).</span>
+<span class="sd">        4. Session Management: Inicjalizacja bezpiecznej sesji (HttpOnly, Secure flag).</span>
+
+<span class="sd">        **Przepływ Logiki**</span>
+
+<span class="sd">        - Pobranie użytkownika na podstawie unikalnego loginu.</span>
+<span class="sd">        - Weryfikacja kryptograficzna hasła.</span>
+<span class="sd">        - Sprawdzenie flagi aktywności konta (blokada administracyjna).</span>
+<span class="sd">        - Inicjalizacja sesji użytkownika (Flask-Login).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Response: Przekierowanie do strony głównej (sukces - 200) lub ponowne wyświetlenie formularza (błąd - 302).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">is_authenticated</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;index&#39;</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;POST&#39;</span><span class="p">:</span>
+        <span class="n">login_input</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;login&#39;</span><span class="p">)</span>
+        <span class="n">haslo_input</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;password&#39;</span><span class="p">)</span>
+        <span class="n">src_ip</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="n">Uzytkownik</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">login</span><span class="o">=</span><span class="n">login_input</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">user</span> <span class="ow">and</span> <span class="n">check_password_hash</span><span class="p">(</span><span class="n">user</span><span class="o">.</span><span class="n">haslo_hash</span><span class="p">,</span> <span class="n">haslo_input</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">:</span>
+                <span class="n">is_deleted</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                    <span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT deleted_at FROM pdt_core.pilot WHERE id_pilot = :id&quot;</span><span class="p">),</span>
+                    <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">}</span>
+                <span class="p">)</span><span class="o">.</span><span class="n">scalar</span><span class="p">()</span>
+
+                <span class="k">if</span> <span class="n">is_deleted</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">security_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;ACCOUNT_LOCKED_ATTEMPT&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;AUTH_LOCKOUT&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">login_input</span><span class="p">,</span>
+                        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">src_ip</span><span class="p">,</span>
+                        <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;Próba logowania na konto zablokowane administracyjnie&#39;</span>
+                    <span class="p">})</span>
+                    <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;To konto zostało zablokowane przez administratora.&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;login.html&#39;</span><span class="p">)</span>
+
+            <span class="n">login_user</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+            <span class="n">security_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;USER_LOGIN_SUCCESS&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;AUTH_SUCCESS&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+                <span class="s1">&#39;role&#39;</span><span class="p">:</span> <span class="n">user</span><span class="o">.</span><span class="n">rola</span><span class="p">,</span>
+                <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">src_ip</span><span class="p">,</span>
+                <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;Użytkownik zalogowany pomyślnie&#39;</span>
+            <span class="p">})</span>
+            <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Zalogowano pomyślnie!&#39;</span><span class="p">,</span> <span class="s1">&#39;success&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;index&#39;</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">security_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;USER_LOGIN_FAILURE&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;AUTH_FAILURE&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;user_attempted&#39;</span><span class="p">:</span> <span class="n">login_input</span><span class="p">,</span>
+                <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">src_ip</span><span class="p">,</span>
+                <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;Nieudana próba logowania: błędne poświadczenia&#39;</span>
+            <span class="p">})</span>
+            <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Błędny login lub hasło.&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;login.html&#39;</span><span class="p">)</span></div>
+
+
+
+
+<div class="viewcode-block" id="logout">
+<a class="viewcode-back" href="../../modules.html#routes.auth.logout">[dokumentacja]</a>
+<span class="nd">@auth_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/logout&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;GET&#39;</span><span class="p">,</span> <span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">logout</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Terminuje sesję użytkownika i unieważnia tokeny dostępowe.</span>
+
+<span class="sd">        Bezpiecznie wylogowuje użytkownika poprzez usunięcie identyfikatora sesji</span>
+<span class="sd">        z ciasteczka przeglądarki (korzystając z `flask_login.logout_user`).</span>
+<span class="sd">        Zapobiega to atakom typu Session Hijacking (przejęcie aktywnej sesji),</span>
+<span class="sd">        gdyż po wylogowaniu stary token sesyjny staje się nieważny.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Response: Przekierowanie do strony logowania.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">user_name</span> <span class="o">=</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span>
+    <span class="n">logout_user</span><span class="p">()</span>
+    <span class="n">security_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;USER_LOGOUT&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;AUTH_LOGOUT&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">user_name</span><span class="p">,</span>
+        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+        <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;Użytkownik wylogował się poprawnie&#39;</span>
+    <span class="p">})</span>
+    <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Wylogowano pomyślnie.&#39;</span><span class="p">,</span> <span class="s1">&#39;info&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;auth.login&#39;</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="generate_strong_password">
+<a class="viewcode-back" href="../../modules.html#routes.auth.generate_strong_password">[dokumentacja]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_strong_password</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Kryptograficznie bezpieczny generator haseł (o wysokiej entropii).</span>
+
+<span class="sd">        Używany przez Administratora przy tworzeniu nowych kont, aby uniknąć</span>
+<span class="sd">        nadawania słabych haseł domyślnych (np. &quot;admin123&quot;).</span>
+
+<span class="sd">        **Implementacja:**</span>
+
+<span class="sd">        Korzysta z modułu `secrets` (a nie `random`), co gwarantuje wysoką entropię</span>
+<span class="sd">        i nieprzewidywalność wygenerowanych znaków. Algorytm w pętli `while` upewnia się,</span>
+<span class="sd">        że wylosowany ciąg spełnia rygorystyczne zasady polityki haseł (duże litery, znaki specjalne).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: Losowe, bezpieczne hasło (min. 12 znaków).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">uppercase</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">ascii_uppercase</span>
+    <span class="n">special</span> <span class="o">=</span> <span class="s2">&quot;!@#$%^&amp;*(),.?</span><span class="se">\&quot;</span><span class="s2">:</span><span class="si">{}</span><span class="s2">|&lt;&gt;&quot;</span>
+    <span class="n">all_chars</span> <span class="o">=</span> <span class="n">string</span><span class="o">.</span><span class="n">ascii_letters</span> <span class="o">+</span> <span class="n">string</span><span class="o">.</span><span class="n">digits</span> <span class="o">+</span> <span class="n">special</span>
+
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">password</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">secrets</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">all_chars</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">14</span><span class="p">))</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">password</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">12</span> <span class="ow">and</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[A-Z]&#39;</span><span class="p">,</span> <span class="n">password</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="mi">2</span> <span class="ow">and</span>
+                <span class="nb">len</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[!@#$%^&amp;*(),.?&quot;:</span><span class="si">{}</span><span class="s1">|&lt;&gt;]&#39;</span><span class="p">,</span> <span class="n">password</span><span class="p">))</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">password</span></div>
+
+
+<div class="viewcode-block" id="register">
+<a class="viewcode-back" href="../../modules.html#routes.auth.register">[dokumentacja]</a>
+<span class="nd">@auth_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/register&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;GET&#39;</span><span class="p">,</span> <span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">register</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Rejestracja nowego użytkownika w systemie (Procedura Administracyjna).</span>
+
+<span class="sd">        Funkcja dostępna tylko dla roli &#39;admin&#39;. Realizuje **transakcyjne** utworzenie</span>
+<span class="sd">        tożsamości w systemie, zapewniając spójność danych między różnymi schematami bazy.</span>
+
+<span class="sd">        **Transakcyjność (Atomowość):**</span>
+
+<span class="sd">        Operacja jest wykonywana w ramach jednej transakcji bazy danych (`db.session`):</span>
+<span class="sd">        1.  `INSERT` do `pdt_core.pilot` – tworzy profil osobowy.</span>
+<span class="sd">        2.  `INSERT` do `pdt_auth.uzytkownik` – tworzy dane logowania, linkując je kluczem obcym do pilota.</span>
+<span class="sd">        Jeśli którykolwiek krok zawiedzie, następuje `ROLLBACK`, zapobiegając powstaniu &quot;sierot&quot; w bazie.</span>
+
+<span class="sd">        **Bezpieczeństwo:**</span>
+
+<span class="sd">        - Generowanie silnego hasła tymczasowego (wymuszona złożoność: duże litery, znaki specjalne).</span>
+<span class="sd">        - Haszowanie hasła przed zapisem do bazy.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Response: Widok rejestracji z komunikatem o wygenerowanym haśle.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">!=</span> <span class="s1">&#39;admin&#39;</span><span class="p">:</span>
+        <span class="n">security_logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;UNAUTHORIZED_ACCESS_ATTEMPT&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+            <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;ACCESS_VIOLATION&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+            <span class="s1">&#39;target&#39;</span><span class="p">:</span> <span class="s1">&#39;register_page&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+            <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;Próba dostępu do rejestracji bez uprawnień admina&#39;</span>
+        <span class="p">})</span>
+        <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Brak uprawnień!&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;index&#39;</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;POST&#39;</span><span class="p">:</span>
+        <span class="n">imie</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;imie&#39;</span><span class="p">)</span>
+        <span class="n">nazwisko</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nazwisko&#39;</span><span class="p">)</span>
+        <span class="n">login_new</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;login&#39;</span><span class="p">)</span>
+        <span class="n">rola</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;rola&#39;</span><span class="p">)</span>
+
+        <span class="n">temp_password</span> <span class="o">=</span> <span class="n">generate_strong_password</span><span class="p">()</span>
+        <span class="n">hashed_password</span> <span class="o">=</span> <span class="n">generate_password_hash</span><span class="p">(</span><span class="n">temp_password</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                          INSERT INTO pdt_core.pilot (imie, nazwisko)</span>
+<span class="s2">                                          VALUES (:i, :n)</span>
+<span class="s2">                                          RETURNING id_pilot</span>
+<span class="s2">                                          &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;i&#39;</span><span class="p">:</span> <span class="n">imie</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">:</span> <span class="n">nazwisko</span><span class="p">})</span>
+            <span class="n">new_pilot_id</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                    INSERT INTO pdt_auth.uzytkownik (login, haslo_hash, rola, id_pilot)</span>
+<span class="s2">                                    VALUES (:login, :password, :rola, :id_pilot)</span>
+<span class="s2">                                    &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span>
+                                   <span class="s1">&#39;login&#39;</span><span class="p">:</span> <span class="n">login_new</span><span class="p">,</span> <span class="s1">&#39;password&#39;</span><span class="p">:</span> <span class="n">hashed_password</span><span class="p">,</span>
+                                   <span class="s1">&#39;rola&#39;</span><span class="p">:</span> <span class="n">rola</span><span class="p">,</span> <span class="s1">&#39;id_pilot&#39;</span><span class="p">:</span> <span class="n">new_pilot_id</span>
+                               <span class="p">})</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+            <span class="n">security_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;USER_CREATED&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;USER_PROVISIONING&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;admin_user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+                <span class="s1">&#39;new_user&#39;</span><span class="p">:</span> <span class="n">login_new</span><span class="p">,</span>
+                <span class="s1">&#39;new_pilot_id&#39;</span><span class="p">:</span> <span class="n">new_pilot_id</span><span class="p">,</span>
+                <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+                <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;Administrator utworzył nowe konto dla </span><span class="si">{</span><span class="n">imie</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">nazwisko</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">})</span>
+
+            <span class="n">flash</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Utworzono konto dla </span><span class="si">{</span><span class="n">imie</span><span class="si">}</span><span class="s1"> </span><span class="si">{</span><span class="n">nazwisko</span><span class="si">}</span><span class="s1">. HASŁO TYMCZASOWE: </span><span class="si">{</span><span class="n">temp_password</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;success&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;index&#39;</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;error&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;REGISTER_ERROR: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;register.html&#39;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="validate_password">
+<a class="viewcode-back" href="../../modules.html#routes.auth.validate_password">[dokumentacja]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">validate_password</span><span class="p">(</span><span class="n">password</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Walidator polityki haseł (Security Compliance).</span>
+
+<span class="sd">        Wymusza na użytkownikach stosowanie silnych haseł podczas ich zmiany.</span>
+<span class="sd">        Chroni przed atakami słownikowymi i tęczowymi (Rainbow Tables),</span>
+<span class="sd">        wymuszając odpowiednią długość i złożoność znaków (zwiększając entropię hasła).</span>
+
+<span class="sd">        **Reguły:**</span>
+
+<span class="sd">        - Minimum 12 znaków.</span>
+<span class="sd">        - Przynajmniej 2 duże litery [A-Z].</span>
+<span class="sd">        - Przynajmniej 2 znaki specjalne (np. !@#).</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            password (str): Hasło w postaci jawnej (plain text) do sprawdzenia.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            bool: True, jeśli hasło spełnia wszystkie wymogi bezpieczeństwa.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">password</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">12</span><span class="p">:</span>
+        <span class="n">flash</span><span class="p">(</span><span class="s2">&quot;Hasło jest krótsze niż 12 znaków.&quot;</span><span class="p">,</span> <span class="s1">&#39;warning&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[A-Z]&#39;</span><span class="p">,</span> <span class="n">password</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">flash</span><span class="p">(</span><span class="s2">&quot;Hasło zawiera mniej niż dwie duże litery.&quot;</span><span class="p">,</span> <span class="s1">&#39;warning&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;[!@#$%^&amp;*(),.?&quot;:</span><span class="si">{}</span><span class="s1">|&lt;&gt;]&#39;</span><span class="p">,</span> <span class="n">password</span><span class="p">))</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="n">flash</span><span class="p">(</span><span class="s2">&quot;Hasło zawiera mniej niż dwa znaki specjalne.&quot;</span><span class="p">,</span> <span class="s1">&#39;warning&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="kc">True</span></div>
+
+
+
+<div class="viewcode-block" id="profile">
+<a class="viewcode-back" href="../../modules.html#routes.auth.profile">[dokumentacja]</a>
+<span class="nd">@auth_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/profil&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;GET&#39;</span><span class="p">,</span> <span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">profile</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Centrum zarządzania tożsamością użytkownika (Self-Service).</span>
+
+<span class="sd">        Umożliwia zalogowanemu użytkownikowi samodzielną administrację swoim kontem</span>
+<span class="sd">        bez angażowania administratora.</span>
+
+<span class="sd">        **Obsługiwane Procesy:**</span>
+
+<span class="sd">        1.  **Zmiana Hasła:**</span>
+
+<span class="sd">            -   Wymaga podania starego hasła (re-authentication), co chroni przed zmianą</span>
+<span class="sd">                hasła przez osobę, która znalazła odblokowany komputer (Session Riding).</span>
+<span class="sd">            -   Weryfikuje siłę nowego hasła funkcją `validate_password`.</span>
+<span class="sd">            -   Zapisuje nowy hash (scrypt) w bazie.</span>
+
+<span class="sd">        2.  **Ustawienia Prywatności (RODO / GDPR):**</span>
+
+<span class="sd">            -   Pozwala pilotowi zdecydować, czy jego nazwisko i licencja są widoczne</span>
+<span class="sd">                na publicznych listach rankingowych i w raportach.</span>
+<span class="sd">            -   Zmiana tych flag w bazie (`pdt_core.pilot`) natychmiast wpływa na</span>
+<span class="sd">                dane zwracane przez moduł raportowy (anonimizacja).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: Widok profilu z formularzami edycji.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">pilot_row</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM pdt_core.pilot WHERE id_pilot = :id&quot;</span><span class="p">),</span>
+                                   <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">})</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;POST&#39;</span><span class="p">:</span>
+        <span class="n">action</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;action&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">action</span> <span class="o">==</span> <span class="s1">&#39;change_password&#39;</span><span class="p">:</span>
+            <span class="n">stare</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;stare_haslo&#39;</span><span class="p">)</span>
+            <span class="n">nowe</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nowe_haslo&#39;</span><span class="p">)</span>
+            <span class="n">nowe_potw</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nowe_haslo_confirm&#39;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">nowe</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">stare</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">check_password_hash</span><span class="p">(</span><span class="n">current_user</span><span class="o">.</span><span class="n">haslo_hash</span><span class="p">,</span> <span class="n">stare</span><span class="p">):</span>
+                    <span class="n">security_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;PWD_CHANGE_FAILURE&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;CREDENTIAL_UPDATE_FAIL&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+                        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+                        <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;Błędne stare hasło przy próbie zmiany&#39;</span>
+                    <span class="p">})</span>
+                    <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Błędne stare hasło!&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">nowe</span> <span class="o">!=</span> <span class="n">nowe_potw</span><span class="p">:</span>
+                    <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Nowe hasła nie są identyczne!&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="ow">not</span> <span class="n">validate_password</span><span class="p">(</span><span class="n">nowe</span><span class="p">):</span>
+                    <span class="k">pass</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">hash_h</span> <span class="o">=</span> <span class="n">generate_password_hash</span><span class="p">(</span><span class="n">nowe</span><span class="p">)</span>
+                    <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;UPDATE pdt_auth.uzytkownik SET haslo_hash = :h WHERE id_uzytkownik = :id&quot;</span><span class="p">),</span>
+                                       <span class="p">{</span><span class="s1">&#39;h&#39;</span><span class="p">:</span> <span class="n">hash_h</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_uzytkownik</span><span class="p">})</span>
+                    <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+                    <span class="n">security_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;PWD_CHANGE_SUCCESS&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;CREDENTIAL_UPDATE_SUCCESS&#39;</span><span class="p">,</span>
+                        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+                        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+                        <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;Hasło zostało zmienione pomyślnie&#39;</span>
+                    <span class="p">})</span>
+                    <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Hasło zostało zmienione pomyślnie.&#39;</span><span class="p">,</span> <span class="s1">&#39;success&#39;</span><span class="p">)</span>
+                    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;auth.profile&#39;</span><span class="p">))</span>
+
+        <span class="k">elif</span> <span class="n">action</span> <span class="o">==</span> <span class="s1">&#39;save_rodo&#39;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">:</span>
+                <span class="n">pokazywac_dane</span> <span class="o">=</span> <span class="s1">&#39;pokazywac_dane&#39;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span>
+                <span class="n">pokazywac_lic</span> <span class="o">=</span> <span class="s1">&#39;pokazywac_lic&#39;</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span>
+                <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                    UPDATE pdt_core.pilot</span>
+<span class="s2">                    SET pokazywac_dane = :d,</span>
+<span class="s2">                        pokazywac_licencje = :l</span>
+<span class="s2">                    WHERE id_pilot = :id</span>
+<span class="s2">                &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;d&#39;</span><span class="p">:</span> <span class="n">pokazywac_dane</span><span class="p">,</span> <span class="s1">&#39;l&#39;</span><span class="p">:</span> <span class="n">pokazywac_lic</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">})</span>
+                <span class="n">app_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;PRIVACY_SETTINGS_UPDATED&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                    <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;GDPR_UPDATE&#39;</span><span class="p">,</span>
+                    <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+                    <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+                    <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;Użytkownik zaktualizował ustawienia RODO&#39;</span>
+                <span class="p">})</span>
+                <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+                <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Ustawienia prywatności zostały zapisane!&#39;</span><span class="p">,</span> <span class="s1">&#39;success&#39;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;auth.profile&#39;</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;profile.html&#39;</span><span class="p">,</span> <span class="n">pilot</span><span class="o">=</span><span class="n">pilot_row</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Prawa zastrzeżone 2026, Dobrawa Rumszewicz.</p>
+  </div>
+
+  Zbudowano w <a href="https://www.sphinx-doc.org/">Sphinx</a> używając
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    dostarczone przez <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

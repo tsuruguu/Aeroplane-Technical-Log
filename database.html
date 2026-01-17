@@ -1,0 +1,812 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="pl" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Specyfikacja Techniczna Bazy Danych PDT &mdash; PDT 1.0 - dokumentacja</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=331e28ce"></script>
+      <script src="_static/doctools.js?v=9a2dae69"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/translations.js?v=da4973ce"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Indeks" href="genindex.html" />
+    <link rel="search" title="Szukaj" href="search.html" />
+    <link rel="prev" title="Dokumentacja Techniczna PDT" href="modules.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            PDT
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Szukaj" aria-label="Szukaj" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Logika Aplikacji (Python)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">Dokumentacja Techniczna PDT</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architektura Danych (SQL)</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Specyfikacja Techniczna Bazy Danych PDT</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#analiza-przeplywu-danych-dfd">Analiza Przepływu Danych (DFD)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#diagram-relacji-erd">Diagram Relacji (ERD)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#schemat-pdt-core-rdzen-operacyjny">Schemat pdt_core (Rdzeń Operacyjny)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#slownik-danych-i-ograniczenia">Słownik Danych i Ograniczenia</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tabela-szybowiec">Tabela: szybowiec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tabela-pilot">Tabela: pilot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tabela-lot">Tabela: lot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tabela-lot-pilot">Tabela: lot_pilot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tabela-usterka">Tabela: usterka</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tabela-naprawa">Tabela: naprawa</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tabela-przeglad">Tabela: przeglad</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tabela-wplata">Tabela: wplata</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#logika-biznesowa-i-automatyzacja-pdt-core">Logika Biznesowa i Automatyzacja (pdt_core)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#funkcje-walidacyjne">Funkcje Walidacyjne</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#wyzwalacze-triggers">Wyzwalacze (Triggers)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#widoki-danych-pdt-core">Widoki Danych (pdt_core)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#widoki-aktywnych-zasobow">Widoki Aktywnych Zasobów</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#widoki-diagnostyczne-i-techniczne">Widoki Diagnostyczne i Techniczne</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#widoki-statystyczne-naloty">Widoki Statystyczne (Naloty)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#widoki-przegladow">Widoki Przeglądów</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#schemat-pdt-auth-uwierzytelnianie-i-uprawnienia">Schemat pdt_auth (Uwierzytelnianie i Uprawnienia)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#typy-wyliczeniowe-custom-enums">Typy Wyliczeniowe (Custom ENUMs)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#tabela-uzytkownik">Tabela: uzytkownik</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#wiezy-integralnosci-i-logika-constraints">Więzy Integralności i Logika (Constraints)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#schemat-pdt-rpt-warstwa-raportowa-i-finansowa">Schemat pdt_rpt (Warstwa Raportowa i Finansowa)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#widoki-finansowe-i-kalkulacyjne">Widoki Finansowe i Kalkulacyjne</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dzienniki-i-raporty-operacyjne">Dzienniki i Raporty Operacyjne</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#analiza-normalizacji-i-zaleznosci-funkcyjnych">Analiza Normalizacji i Zależności Funkcyjnych</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">PDT</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Specyfikacja Techniczna Bazy Danych PDT</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/database.rst.txt" rel="nofollow"> Zobacz źródło strony</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="specyfikacja-techniczna-bazy-danych-pdt">
+<h1>Specyfikacja Techniczna Bazy Danych PDT<a class="headerlink" href="#specyfikacja-techniczna-bazy-danych-pdt" title="Link to this heading"></a></h1>
+<section id="analiza-przeplywu-danych-dfd">
+<h2>Analiza Przepływu Danych (DFD)<a class="headerlink" href="#analiza-przeplywu-danych-dfd" title="Link to this heading"></a></h2>
+<p>Poniższy diagram przedstawia przepływ informacji pomiędzy użytkownikami a systemem PDT:</p>
+<img alt="Diagram DFD poziomu 1" class="align-center" src="_images/diagram_dfd.png" />
+<p>Analiza przepływu danych w systemie PDT wykazuje ścisłą integrację procesów operacyjnych z warstwą walidacyjną, techniczną oraz finansową. Poniżej opisano szczegółową strukturę przepływu informacji w podziale na główne procesy logiczne poziomu 1 widoczne na diagramie DFD:</p>
+<p><strong>1.0 Uwierzytelnianie i Kontrola Dostępu</strong>
+Proces ten stanowi bramę wejściową do systemu, determinując zakres dostępnych funkcjonalności.</p>
+<ul class="simple">
+<li><p><strong>Wejście</strong>: Dane logowania (unikalny login oraz hasło) przekazywane przez użytkownika.</p></li>
+<li><p><strong>Przetwarzanie</strong>: System weryfikuje poświadczenia w magazynie danych D1 (tabela <code class="docutils literal notranslate"><span class="pre">uzytkownik</span></code>). Sprawdzane są aktywne uprawnienia oraz przypisane role systemowe (Pilot, Admin, Mechanik).</p></li>
+<li><p><strong>Wynik</strong>: Wygenerowanie bezpiecznego tokenu sesji oraz nadanie odpowiedniego kontekstu uprawnień wewnątrz aplikacji.</p></li>
+</ul>
+<p><strong>2.0 Zarządzanie Operacjami Lotniczymi</strong>
+Jest to centralny proces systemu, w którym następuje transformacja danych wprowadzanych przez pilotów w audytowalne rekordy operacyjne.</p>
+<ul class="simple">
+<li><p><strong>Wejście</strong>: Kompletne dane lotu oraz skład załogi przesyłane przez formularz rejestracji operacji.</p></li>
+<li><dl class="simple">
+<dt><strong>Przetwarzanie</strong>: To najbardziej krytyczny etap, w którym system sprawdza dostępność sprzętu oraz uruchamia wyzwalacze walidacyjne (triggers):</dt><dd><ul>
+<li><p><strong>Walidacja czasu</strong>: Blokada zapisów o nielogicznej chronologii (start po ladowaniu).</p></li>
+<li><p><strong>Bezpieczeństwo załogi</strong>: Weryfikacja obecności instruktora lub nadzoru z ziemi dla uczniów-pilotów.</p></li>
+<li><p><strong>Hierarchia</strong>: Wymuszanie obecności dowódcy (PIC) przy obecności drugiego członka załogi.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p><strong>Wynik</strong>: Potwierdzony i trwały zapis operacji lotniczej w głównym dzienniku lotów.</p></li>
+</ul>
+<p><strong>3.0 Obsługa Techniczna i Serwisowa</strong>
+Proces odpowiedzialny za ewidencję zdatności floty oraz dokumentowanie prac serwisowych.</p>
+<ul class="simple">
+<li><p><strong>Wejście</strong>: Zgłoszenia usterek technicznych od pilotów oraz raporty napraw generowane przez mechaników.</p></li>
+<li><p><strong>Przetwarzanie</strong>: System pobiera aktualną listę problemów z bazy danych, umożliwiając mechanikom ich edycję oraz zarządzanie cyklem życia usterki (statusy: otwarta, w toku, zamknięta).</p></li>
+<li><p><strong>Wynik</strong>: Aktualizacja stanu technicznego floty oraz kompletna dokumentacja wykonanych prac serwisowych.</p></li>
+</ul>
+<p><strong>4.0 Generowanie Analiz i Rozliczeń</strong>
+Końcowy proces agregacji, w którym dane operacyjne są przeliczane na informacje finansowe i statystyczne.</p>
+<ul class="simple">
+<li><p><strong>Dane</strong>: Pobieranie archiwalnych danych nalotowych, stawek godzinowych za sprzęt oraz kosztów startów z bazy danych.</p></li>
+<li><p><strong>Przetwarzanie</strong>: Wykorzystanie warstwy widoków raportowych (schemat <code class="docutils literal notranslate"><span class="pre">pdt_rpt</span></code>) do automatycznego obliczania nalotu pilotów oraz podziału kosztów operacji lotniczych.</p></li>
+<li><p><strong>Wynik</strong>: Generowanie spersonalizowanych dzienników lotów, zestawień sald członkowskich oraz zbiorczych raportów finansowych dla administratorów.</p></li>
+</ul>
+</section>
+<section id="diagram-relacji-erd">
+<h2>Diagram Relacji (ERD)<a class="headerlink" href="#diagram-relacji-erd" title="Link to this heading"></a></h2>
+<p>Poniższy diagram przedstawia logiczną strukturę bazy danych, relacje między encjami oraz klucze główne i obce.</p>
+<img alt="Diagram ERD bazy danych PDT" class="align-center" src="_images/diagram_erd.png" />
+</section>
+<section id="schemat-pdt-core-rdzen-operacyjny">
+<h2>Schemat pdt_core (Rdzeń Operacyjny)<a class="headerlink" href="#schemat-pdt-core-rdzen-operacyjny" title="Link to this heading"></a></h2>
+<p>Schemat <code class="docutils literal notranslate"><span class="pre">pdt_core</span></code> zawiera wszystkie tabele odpowiedzialne za procesy operacyjne: ewidencję floty, pilotów, logowanie lotów oraz obsługę techniczną.</p>
+<section id="slownik-danych-i-ograniczenia">
+<h3>Słownik Danych i Ograniczenia<a class="headerlink" href="#slownik-danych-i-ograniczenia" title="Link to this heading"></a></h3>
+<p>W systemie zdefiniowano dziedziny danych (typy ENUM), które ograniczają dopuszczalne wartości:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt><strong>pdt_core.status_usterki</strong>:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">otwarta</span></code>: Usterka zgłoszona, oczekuje na weryfikację przez mechanika[c.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">w_toku</span></code>: Prace serwisowe są w trakcie realizacji.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">zamknieta</span></code>: Usterka usunięta, szybowiec dopuszczony do lotu.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p><strong>pdt_core.rola_w_locie</strong>: Określa funkcję załogi: <code class="docutils literal notranslate"><span class="pre">PIC</span></code> (Dowódca), <code class="docutils literal notranslate"><span class="pre">SIC</span></code> (Drugi pilot), <code class="docutils literal notranslate"><span class="pre">UCZEN</span></code>, <code class="docutils literal notranslate"><span class="pre">INSTRUKTOR</span></code>, <code class="docutils literal notranslate"><span class="pre">PASAZER</span></code>.</p></li>
+<li><p><strong>pdt_auth.rola_uzytkownika</strong>: Poziomy dostępu: <code class="docutils literal notranslate"><span class="pre">admin</span></code> (pełny), <code class="docutils literal notranslate"><span class="pre">pilot</span></code> (operacyjny), <code class="docutils literal notranslate"><span class="pre">mechanik</span></code> (techniczny) .</p></li>
+</ul>
+</section>
+<section id="tabela-szybowiec">
+<h3>Tabela: szybowiec<a class="headerlink" href="#tabela-szybowiec" title="Link to this heading"></a></h3>
+<p>Przechowuje informacje o flocie szybowców dostępnych w organizacji.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 60.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Kolumna</p></th>
+<th class="head"><p>Typ</p></th>
+<th class="head"><p>Opis</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id_szybowiec</span></code></p></td>
+<td><p>BIGINT (PK)</p></td>
+<td><p>Unikalny identyfikator szybowca (Serial).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">typ</span></code></p></td>
+<td><p>VARCHAR(50)</p></td>
+<td><p>Model/typ szybowca (np. SZD-30 Pirat).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">znak_rej</span></code></p></td>
+<td><p>VARCHAR(16)</p></td>
+<td><p>Unikalny znak rejestracyjny statku powietrznego (UNIQUE).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cena_za_h</span></code></p></td>
+<td><p>NUMERIC(10,2)</p></td>
+<td><p>Stawka za godzinę nalotu (nie może być ujemna).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">created_at</span></code></p></td>
+<td><p>TIMESTAMP</p></td>
+<td><p>Data utworzenia rekordu (DEFAULT: now()).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">deleted_at</span></code></p></td>
+<td><p>TIMESTAMP</p></td>
+<td><p>Data usunięcia (Soft Delete).</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="tabela-pilot">
+<h3>Tabela: pilot<a class="headerlink" href="#tabela-pilot" title="Link to this heading"></a></h3>
+<p>Ewidencja osób uprawnionych do wykonywania lotów.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 60.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Kolumna</p></th>
+<th class="head"><p>Typ</p></th>
+<th class="head"><p>Opis</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id_pilot</span></code></p></td>
+<td><p>BIGINT (PK)</p></td>
+<td><p>Unikalny identyfikator pilota.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">imie</span></code></p></td>
+<td><p>VARCHAR(20)</p></td>
+<td><p>Imię pilota.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nazwisko</span></code></p></td>
+<td><p>VARCHAR(30)</p></td>
+<td><p>Nazwisko pilota.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">licencja</span></code></p></td>
+<td><p>VARCHAR(30)</p></td>
+<td><p>Numer licencji (np. SPL).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nalot_zewnetrzny</span></code></p></td>
+<td><p>NUMERIC(10,2)</p></td>
+<td><p>Czas lotu przeniesiony z innych dzienników (do obliczeń nalotu całkowitego).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pokazywac_dane</span></code></p></td>
+<td><p>BOOLEAN</p></td>
+<td><p>Zgoda na wyświetlanie danych osobowych w raportach publicznych.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="tabela-lot">
+<h3>Tabela: lot<a class="headerlink" href="#tabela-lot" title="Link to this heading"></a></h3>
+<p>Główny rejestr operacji lotniczych. Tabela ta posiada wbudowaną logikę walidacji czasu.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 60.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Kolumna</p></th>
+<th class="head"><p>Typ</p></th>
+<th class="head"><p>Opis</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id_lot</span></code></p></td>
+<td><p>BIGINT (PK)</p></td>
+<td><p>Unikalny identyfikator operacji.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">id_szybowiec</span></code></p></td>
+<td><p>BIGINT (FK)</p></td>
+<td><p>Odniesienie do użytego sprzętu.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dt_start</span></code></p></td>
+<td><p>TIMESTAMP</p></td>
+<td><p>Data i godzina momentu startu.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">dt_ladowanie</span></code></p></td>
+<td><p>TIMESTAMP</p></td>
+<td><p>Data i godzina momentu przyziemienia.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">data_lotu</span></code></p></td>
+<td><p>DATE</p></td>
+<td><p><strong>Kolumna generowana</strong> automatycznie z <code class="docutils literal notranslate"><span class="pre">dt_start</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rodzaj_startu</span></code></p></td>
+<td><p>ENUM</p></td>
+<td><p>Metoda startu: «wyciagarka», «samolot», «grawitacyjny».</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id_start</span></code></p></td>
+<td><p>BIGINT (FK)</p></td>
+<td><p>Lotnisko startu.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">id_ladowanie</span></code></p></td>
+<td><p>BIGINT (FK)</p></td>
+<td><p>Lotnisko lądowania.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id_nadzorujacy</span></code></p></td>
+<td><p>BIGINT (FK)</p></td>
+<td><p>Instruktor nadzorujący (wymagany przy lotach samodzielnych uczniów).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">czy_oplacony</span></code></p></td>
+<td><p>BOOLEAN</p></td>
+<td><p>Status rozliczenia lotu.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="tabela-lot-pilot">
+<h3>Tabela: lot_pilot<a class="headerlink" href="#tabela-lot-pilot" title="Link to this heading"></a></h3>
+<p>Tabela asocjacyjna definiująca załogę konkretnego lotu.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 60.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Kolumna</p></th>
+<th class="head"><p>Typ</p></th>
+<th class="head"><p>Opis</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id_lot</span></code></p></td>
+<td><p>BIGINT (PK, FK)</p></td>
+<td><p>Identyfikator lotu.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">id_pilot</span></code></p></td>
+<td><p>BIGINT (PK, FK)</p></td>
+<td><p>Identyfikator pilota.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">rola</span></code></p></td>
+<td><p>ENUM</p></td>
+<td><p>Funkcja w kabinie: «PIC», «SIC», «UCZEN», «INSTRUKTOR», «PASAZER».</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="tabela-usterka">
+<h3>Tabela: usterka<a class="headerlink" href="#tabela-usterka" title="Link to this heading"></a></h3>
+<p>Rejestr problemów technicznych zgłaszanych po lotach.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 60.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Kolumna</p></th>
+<th class="head"><p>Typ</p></th>
+<th class="head"><p>Opis</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id_usterka</span></code></p></td>
+<td><p>BIGINT (PK)</p></td>
+<td><p>Unikalny numer zgłoszenia.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">id_szybowiec</span></code></p></td>
+<td><p>BIGINT (FK)</p></td>
+<td><p>Szybowiec, którego dotyczy usterka.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">opis</span></code></p></td>
+<td><p>VARCHAR(500)</p></td>
+<td><p>Szczegółowy opis uszkodzenia/usterki.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">status</span></code></p></td>
+<td><p>ENUM</p></td>
+<td><p>Stan zgłoszenia: «otwarta», «w_toku», «zamknieta».</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="tabela-naprawa">
+<h3>Tabela: naprawa<a class="headerlink" href="#tabela-naprawa" title="Link to this heading"></a></h3>
+<p>Dokumentacja prac serwisowych wykonanych przez mechaników.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 60.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Kolumna</p></th>
+<th class="head"><p>Typ</p></th>
+<th class="head"><p>Opis</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id_naprawa</span></code></p></td>
+<td><p>INTEGER (PK)</p></td>
+<td><p>Numer wpisu serwisowego.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">id_usterka</span></code></p></td>
+<td><p>INTEGER (FK)</p></td>
+<td><p>Odniesienie do zgłoszonej usterki.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id_mechanik</span></code></p></td>
+<td><p>INTEGER (FK)</p></td>
+<td><p>Odniesienie do użytkownika o roli mechanika.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">opis_prac</span></code></p></td>
+<td><p>TEXT</p></td>
+<td><p>Opis wykonanych czynności naprawczych.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="tabela-przeglad">
+<h3>Tabela: przeglad<a class="headerlink" href="#tabela-przeglad" title="Link to this heading"></a></h3>
+<p>Harmonogram okresowych przeglądów technicznych (np. 50h, roczny).</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 60.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Kolumna</p></th>
+<th class="head"><p>Typ</p></th>
+<th class="head"><p>Opis</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id_przeglad</span></code></p></td>
+<td><p>BIGINT (PK)</p></td>
+<td><p>Unikalny identyfikator przeglądu.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">data_przegladu</span></code></p></td>
+<td><p>DATE</p></td>
+<td><p>Data wykonania inspekcji.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">typ</span></code></p></td>
+<td><p>VARCHAR(30)</p></td>
+<td><p>Rodzaj przeglądu (np. «Roczny», «50-godzinny»).</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="tabela-wplata">
+<h3>Tabela: wplata<a class="headerlink" href="#tabela-wplata" title="Link to this heading"></a></h3>
+<p>Ewidencja wpłat na subkonta pilotów.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 60.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Kolumna</p></th>
+<th class="head"><p>Typ</p></th>
+<th class="head"><p>Opis</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id_wplata</span></code></p></td>
+<td><p>BIGINT (PK)</p></td>
+<td><p>Unikalny identyfikator wpłaty.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">id_pilot</span></code></p></td>
+<td><p>BIGINT (FK)</p></td>
+<td><p>Pilot dokonujący wpłaty.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kwota</span></code></p></td>
+<td><p>NUMERIC(10,2)</p></td>
+<td><p>Wartość wpłaty.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">tytul</span></code></p></td>
+<td><p>VARCHAR(100)</p></td>
+<td><p>Tytuł przelewu/wpłaty.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="logika-biznesowa-i-automatyzacja-pdt-core">
+<h2>Logika Biznesowa i Automatyzacja (pdt_core)<a class="headerlink" href="#logika-biznesowa-i-automatyzacja-pdt-core" title="Link to this heading"></a></h2>
+<p>System PDT wykorzystuje wyzwalacze (triggers) oraz funkcje proceduralne (PL/pgSQL) do zapewnienia integralności danych i wymuszenia przestrzegania procedur lotniczych.</p>
+<section id="funkcje-walidacyjne">
+<h3>Funkcje Walidacyjne<a class="headerlink" href="#funkcje-walidacyjne" title="Link to this heading"></a></h3>
+<p><strong>1. Walidacja Bezpieczeństwa Ucznia (trg_validate_student_safety)</strong>
+Funkcja ta jest kluczowym elementem systemu bezpieczeństwa. Monitoruje przypisania pilotów do lotów i reaguje w przypadku wykrycia roli «UCZEN».</p>
+<ul class="simple">
+<li><p><strong>Mechanizm działania</strong>: Jeśli w locie bierze udział uczeń, system sprawdza, czy w kabinie znajduje się instruktor (rola «INSTRUKTOR») LUB czy w nagłówku lotu wskazano instruktora nadzorującego z ziemi (kolumna <code class="docutils literal notranslate"><span class="pre">id_nadzorujacy</span></code>).</p></li>
+<li><p><strong>Błąd</strong>: W przypadku braku obu form nadzoru, system rzuca wyjątek: <em>„NARUSZENIE BEZPIECZEŃSTWA: Lot samodzielny ucznia… WYMAGA wskazania instruktora nadzorującego!”</em>.</p></li>
+</ul>
+<p><strong>2. Kontrola Chronologii Lotu (trg_check_czas_lotu)</strong>
+Prosta, ale krytyczna funkcja zapobiegająca błędom operatora przy wprowadzaniu danych czasowych.</p>
+<ul class="simple">
+<li><p><strong>Mechanizm działania</strong>: Sprawdza, czy data i godzina lądowania (<code class="docutils literal notranslate"><span class="pre">dt_ladowanie</span></code>) jest późniejsza niż data i godzina startu (<code class="docutils literal notranslate"><span class="pre">dt_start</span></code>).</p></li>
+<li><p><strong>Błąd</strong>: Próba zapisu lotu o ujemnym czasie trwania skutkuje błędem logicznym.</p></li>
+</ul>
+<p><strong>3. Weryfikacja Składu Załogi (enforce_sic_requires_pic)</strong>
+Zapewnia poprawność hierarchii w kabinie szybowca.</p>
+<ul class="simple">
+<li><p><strong>Mechanizm działania</strong>: Blokuje dodanie drugiego pilota (rola «SIC» - Second-in-Command), jeżeli dla danego lotu nie został wcześniej zdefiniowany dowódca (rola «PIC» - Pilot-in-Command).</p></li>
+<li><p><strong>Błąd</strong>: <em>„SIC wymaga istnienia PIC dla lotu %”</em>.</p></li>
+</ul>
+<p><strong>4. Automatyczna Aktualizacja Znacznika Czasu (update_updated_at_column)</strong>
+Funkcja pomocnicza utrzymująca spójność metadanych.</p>
+<ul class="simple">
+<li><p><strong>Mechanizm działania</strong>: Przy każdej edycji rekordu w tabelach operacyjnych, automatycznie ustawia kolumnę <code class="docutils literal notranslate"><span class="pre">updated_at</span></code> na aktualny czas systemowy (<code class="docutils literal notranslate"><span class="pre">NOW()</span></code>).</p></li>
+</ul>
+</section>
+<section id="wyzwalacze-triggers">
+<h3>Wyzwalacze (Triggers)<a class="headerlink" href="#wyzwalacze-triggers" title="Link to this heading"></a></h3>
+<p>Poniższa tabela przedstawia powiązanie powyższych funkcji z konkretnymi tabelami i zdarzeniami:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 30.0%" />
+<col style="width: 40.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Tabela</p></th>
+<th class="head"><p>Nazwa Triggera</p></th>
+<th class="head"><p>Wyzwalana Funkcja</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">lot_pilot</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trg_check_student_safety</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trg_validate_student_safety()</span></code> (AFTER INSERT/UPDATE)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">lot</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trg_validate_flight_time</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trg_check_czas_lotu()</span></code> (BEFORE INSERT/UPDATE)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">lot_pilot</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trg_sic_requires_pic</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">enforce_sic_requires_pic()</span></code> (BEFORE INSERT/UPDATE)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">lot</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trg_lot_updated_at</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">update_updated_at_column()</span></code> (BEFORE UPDATE)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">szybowiec</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trg_szybowiec_updated_at</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">update_updated_at_column()</span></code> (BEFORE UPDATE)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">pilot</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trg_pilot_updated_at</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">update_updated_at_column()</span></code> (BEFORE UPDATE)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="widoki-danych-pdt-core">
+<h2>Widoki Danych (pdt_core)<a class="headerlink" href="#widoki-danych-pdt-core" title="Link to this heading"></a></h2>
+<p>Widoki w schemacie <code class="docutils literal notranslate"><span class="pre">pdt_core</span></code> służą do uproszczenia zapytań aplikacyjnych poprzez ukrycie złożonych złączeń (JOIN) oraz automatyczne filtrowanie rekordów aktywnych.</p>
+<section id="widoki-aktywnych-zasobow">
+<h3>Widoki Aktywnych Zasobów<a class="headerlink" href="#widoki-aktywnych-zasobow" title="Link to this heading"></a></h3>
+<p>Te widoki automatycznie odfiltrowują rekordy, które zostały oznaczone jako usunięte (kolumna <code class="docutils literal notranslate"><span class="pre">deleted_at</span> <span class="pre">IS</span> <span class="pre">NULL</span></code>).</p>
+<ul class="simple">
+<li><p><strong>v_aktywne_loty</strong>: Zwraca listę wszystkich lotów, które nie zostały usunięte z dziennika.</p></li>
+<li><p><strong>v_aktywne_szybowce</strong>: Zwraca listę dostępnych szybowców, gotowych do planowania operacji.</p></li>
+</ul>
+</section>
+<section id="widoki-diagnostyczne-i-techniczne">
+<h3>Widoki Diagnostyczne i Techniczne<a class="headerlink" href="#widoki-diagnostyczne-i-techniczne" title="Link to this heading"></a></h3>
+<p><strong>v_do_naprawy</strong>
+Widok dla mechaników, agregujący informacje o usterkach wymagających interwencji.
+* <strong>Logika</strong>: Łączy tabele <code class="docutils literal notranslate"><span class="pre">usterka</span></code>, <code class="docutils literal notranslate"><span class="pre">szybowiec</span></code> oraz <code class="docutils literal notranslate"><span class="pre">lot</span></code>.
+* <strong>Filtrowanie</strong>: Wyświetla tylko usterki o statusie innym niż «zamknieta».
+* <strong>Zastosowanie</strong>: Główna lista zadań dla personelu technicznego.</p>
+<p><strong>v_loty_usterki</strong>
+Widok podsumowujący stan techniczny konkretnych operacji lotniczych.
+* <strong>Logika</strong>: Grupuje usterki po identyfikatorze lotu (<code class="docutils literal notranslate"><span class="pre">id_lot</span></code>).
+* <strong>Kolumny specjalne</strong>:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">ma_usterke</span></code>: Zwraca «TAK» lub «NIE».</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">opis_usterek</span></code>: Agreguje opisy wielu usterek w jeden ciąg znaków (rozdzielony znakiem „ | „) przy użyciu funkcji <code class="docutils literal notranslate"><span class="pre">string_agg</span></code>.</p></li>
+</ul>
+</div></blockquote>
+<p><strong>v_szybowiec_status</strong>
+Kompleksowy widok przedstawiający aktualną „metrykę” statku powietrznego.
+* <strong>Logika</strong>: Łączy dane o szybowcu z ostatnim wykonanym przeglądem oraz danymi mechanika, który go przeprowadził.
+* <strong>Zastosowanie</strong>: Szybki podgląd zdatności do lotu.</p>
+</section>
+<section id="widoki-statystyczne-naloty">
+<h3>Widoki Statystyczne (Naloty)<a class="headerlink" href="#widoki-statystyczne-naloty" title="Link to this heading"></a></h3>
+<p><strong>v_pilot_nalot</strong>
+Oblicza całkowity czas spędzony w powietrzu przez każdego pilota.
+* <strong>Algorytm</strong>: Sumuje różnicę czasu między lądowaniem a startem (<code class="docutils literal notranslate"><span class="pre">dt_ladowanie</span> <span class="pre">-</span> <span class="pre">dt_start</span></code>), przelicza sekundy na godziny i dodaje wartość z kolumny <code class="docutils literal notranslate"><span class="pre">nalot_zewnetrzny</span></code>.
+* <strong>Obsługa NULL</strong>: Wykorzystuje funkcję <code class="docutils literal notranslate"><span class="pre">COALESCE</span></code>, aby uniknąć błędów obliczeniowych dla nowych pilotów bez nalotu.</p>
+<p><strong>v_szybowiec_nalot</strong>
+Oblicza całkowity nalot (tzw. „resurs”) każdego szybowca.
+* <strong>Logika</strong>: Sumuje czas trwania wszystkich nieusuniętych lotów przypisanych do danej jednostki (<code class="docutils literal notranslate"><span class="pre">id_szybowiec</span></code>).</p>
+</section>
+<section id="widoki-przegladow">
+<h3>Widoki Przeglądów<a class="headerlink" href="#widoki-przegladow" title="Link to this heading"></a></h3>
+<p><strong>v_szybowiec_ostatni_przeglad</strong>
+Wyszukuje wyłącznie najświeższą datę przeglądu dla każdego szybowca.
+* <strong>Technologia</strong>: Wykorzystuje konstrukcję <code class="docutils literal notranslate"><span class="pre">DISTINCT</span> <span class="pre">ON</span> <span class="pre">(id_szybowiec)</span></code> z sortowaniem malejącym po dacie, co gwarantuje pobranie tylko jednego, najnowszego rekordu dla każdej jednostki.</p>
+</section>
+</section>
+<section id="schemat-pdt-auth-uwierzytelnianie-i-uprawnienia">
+<h2>Schemat pdt_auth (Uwierzytelnianie i Uprawnienia)<a class="headerlink" href="#schemat-pdt-auth-uwierzytelnianie-i-uprawnienia" title="Link to this heading"></a></h2>
+<p>Schemat <code class="docutils literal notranslate"><span class="pre">pdt_auth</span></code> zarządza dostępem do systemu. Przechowuje dane kont użytkowników, zahaszowane hasła oraz definiuje role, które determinują zakres dostępnych funkcjonalności.</p>
+<section id="typy-wyliczeniowe-custom-enums">
+<h3>Typy Wyliczeniowe (Custom ENUMs)<a class="headerlink" href="#typy-wyliczeniowe-custom-enums" title="Link to this heading"></a></h3>
+<p>W celu zapewnienia ścisłej kontroli uprawnień zdefiniowano własny typ danych:</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt><strong>pdt_auth.rola_uzytkownika</strong>: Określa typ konta w systemie.</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">pilot</span></code>: Użytkownik powiązany z profilem pilota w <code class="docutils literal notranslate"><span class="pre">pdt_core</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">admin</span></code>: Pełne uprawnienia do zarządzania systemem i konfiguracją.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mechanik</span></code>: Dostęp do modułów serwisowych, usterek i przeglądów.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</section>
+<section id="tabela-uzytkownik">
+<h3>Tabela: uzytkownik<a class="headerlink" href="#tabela-uzytkownik" title="Link to this heading"></a></h3>
+<p>Główna tabela przechowująca dane dostępowe. Każdy rekord reprezentuje pojedyncze konto z przypisaną rolą.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20.0%" />
+<col style="width: 20.0%" />
+<col style="width: 60.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Kolumna</p></th>
+<th class="head"><p>Typ</p></th>
+<th class="head"><p>Opis</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id_uzytkownik</span></code></p></td>
+<td><p>BIGINT (PK)</p></td>
+<td><p>Unikalny identyfikator użytkownika.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">login</span></code></p></td>
+<td><p>VARCHAR(20)</p></td>
+<td><p>Unikalna nazwa użytkownika używana do logowania.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">haslo_hash</span></code></p></td>
+<td><p>VARCHAR(500)</p></td>
+<td><p>Skrót (hash) hasła użytkownika (bezpieczeństwo danych).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">rola</span></code></p></td>
+<td><p>ENUM</p></td>
+<td><p>Uprawnienia użytkownika (<code class="docutils literal notranslate"><span class="pre">pdt_auth.rola_uzytkownika</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">id_pilot</span></code></p></td>
+<td><p>BIGINT (FK)</p></td>
+<td><p>Opcjonalne powiązanie z tabelą <code class="docutils literal notranslate"><span class="pre">pdt_core.pilot</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="wiezy-integralnosci-i-logika-constraints">
+<h3>Więzy Integralności i Logika (Constraints)<a class="headerlink" href="#wiezy-integralnosci-i-logika-constraints" title="Link to this heading"></a></h3>
+<p>Baza danych na poziomie schematu wymusza poprawność relacji między kontem a profilem pilota:</p>
+<ol class="arabic simple">
+<li><p><strong>Weryfikacja Profilu Pilota (chk_rola_pilot_wymaga_id)</strong>:
+Constraint typu <code class="docutils literal notranslate"><span class="pre">CHECK</span></code> gwarantuje, że jeżeli użytkownik posiada rolę «pilot», to kolumna <code class="docutils literal notranslate"><span class="pre">id_pilot</span></code> <strong>musi</strong> zawierać odniesienie do rekordu w tabeli pilotów. Użytkownicy o rolach «admin» lub «mechanik» nie muszą posiadać takiego powiązania.</p></li>
+<li><p><strong>Unikalność Powiązań</strong>:
+Na kolumnie <code class="docutils literal notranslate"><span class="pre">id_pilot</span></code> założono klucz unikalny (<code class="docutils literal notranslate"><span class="pre">UNIQUE</span></code>), co oznacza, że jeden profil pilota z <code class="docutils literal notranslate"><span class="pre">pdt_core</span></code> może być przypisany do maksymalnie jednego konta użytkownika.</p></li>
+<li><p><strong>Polityka Usuwania (FK Constraints)</strong>:
+Powiązanie z tabelą <code class="docutils literal notranslate"><span class="pre">pdt_core.pilot</span></code> jest skonfigurowane jako <code class="docutils literal notranslate"><span class="pre">ON</span> <span class="pre">DELETE</span> <span class="pre">SET</span> <span class="pre">NULL</span></code>. W przypadku usunięcia rekordu pilota, konto użytkownika pozostaje w systemie, ale traci powiązanie z danymi personalnymi.</p></li>
+</ol>
+</section>
+</section>
+<section id="schemat-pdt-rpt-warstwa-raportowa-i-finansowa">
+<h2>Schemat pdt_rpt (Warstwa Raportowa i Finansowa)<a class="headerlink" href="#schemat-pdt-rpt-warstwa-raportowa-i-finansowa" title="Link to this heading"></a></h2>
+<p>Schemat <code class="docutils literal notranslate"><span class="pre">pdt_rpt</span></code> stanowi warstwę abstrakcji nad danymi surowymi. Zawiera logikę biznesową dotyczącą naliczania opłat, rozliczeń między pilotami oraz generowania zestawień statystycznych.</p>
+<section id="widoki-finansowe-i-kalkulacyjne">
+<h3>Widoki Finansowe i Kalkulacyjne<a class="headerlink" href="#widoki-finansowe-i-kalkulacyjne" title="Link to this heading"></a></h3>
+<p><strong>v_koszt_lotu</strong>
+Dynamicznie oblicza całkowity koszt operacji lotniczej.</p>
+<ul>
+<li><p><strong>Algorytm kosztu</strong>:
+Koszt jest sumą trzech składników:</p>
+<div class="math notranslate nohighlight">
+\[K_{calkowity} = (T_{h} \times C_{h}) + K_{startu} + K_{dodatkowy}\]</div>
+</li>
+<li><dl class="simple">
+<dt><strong>Składniki kosztu</strong>:</dt><dd><ul class="simple">
+<li><p><strong>Nalot</strong>: Czas lotu (<span class="math notranslate nohighlight">\(T_{h}\)</span>) mnożony przez stawkę godzinową szybowca (<span class="math notranslate nohighlight">\(C_{h}\)</span>).</p></li>
+<li><p><strong>Typ startu</strong>: Wyciągarka (20.00 PLN), Samolot (100.00 PLN), inne (0.00 PLN).</p></li>
+<li><p><strong>Opłata pasażerska</strong>: Dodatkowe 100.00 PLN, jeśli w locie uczestniczy pasażer.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p><strong>Płatnik</strong>: Widok automatycznie generuje opis płatnika (np. nazwisko ucznia lub podział 50/50 między pilotów).</p></li>
+</ul>
+<p><strong>v_rozliczenie_finansowe</strong>
+Określa, jaką kwotę konkretny pilot winien jest za dany lot, uwzględniając jego rolę.</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt><strong>Logika podziału kosztów</strong>:</dt><dd><ul>
+<li><p><strong>Uczeń / Pasażer</strong>: Pokrywa 100% kosztów lotu.</p></li>
+<li><p><strong>Instruktor</strong>: Koszt 0.00 PLN (loty szkolne opłaca uczeń).</p></li>
+<li><p><strong>PIC (Dowódca)</strong>: 100% kosztów, chyba że leci z pasażerem (wtedy 0.00, bo płaci pasażer) lub drugim pilotem (SIC).</p></li>
+<li><p><strong>PIC / SIC</strong>: Jeśli w locie bierze udział dwóch pilotów z licencjami, koszt dzielony jest po 50%.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p><strong>v_historia_finansowa</strong>
+Generuje wyciąg z konta pilota z wykorzystaniem funkcji okna.</p>
+<ul class="simple">
+<li><p><strong>Funkcja okna (Window Function)</strong>: Oblicza saldo kroczące (saldo po każdej operacji) za pomocą <code class="docutils literal notranslate"><span class="pre">SUM(wplyw)</span> <span class="pre">OVER</span> <span class="pre">(PARTITION</span> <span class="pre">BY</span> <span class="pre">id_pilot</span> <span class="pre">ORDER</span> <span class="pre">BY</span> <span class="pre">data_operacji)</span></code>.</p></li>
+<li><p><strong>Źródła danych</strong>: Łączy wpłaty (wartości dodatnie) oraz naliczone koszty lotów (wartości ujemne).</p></li>
+</ul>
+<p><strong>v_saldo_pilota</strong>
+Podsumowanie aktualnego stanu finansowego wszystkich aktywnych pilotów.</p>
+<ul class="simple">
+<li><p><strong>Kolumny</strong>: Suma wszystkich wpłat, suma wszystkich kosztów oraz końcowe saldo (suma wpłat - suma kosztów).</p></li>
+</ul>
+</section>
+<section id="dzienniki-i-raporty-operacyjne">
+<h3>Dzienniki i Raporty Operacyjne<a class="headerlink" href="#dzienniki-i-raporty-operacyjne" title="Link to this heading"></a></h3>
+<p><strong>v_dziennik_lotow</strong>
+Kompleksowe zestawienie wszystkich danych o locie w jednym widoku.</p>
+<ul class="simple">
+<li><p><strong>Dane scalone</strong>: Łączy informacje o szybowcu, czasach, lotniskach startu/lądowania, załodze (imię, nazwisko, licencja) oraz ewentualnych usterkach.</p></li>
+<li><p><strong>Zastosowanie</strong>: Główny widok do eksportu papierowej książki lotów lotniska.</p></li>
+</ul>
+<p><strong>v_nalot_szybowiec_miesiac</strong>
+Statystyka wykorzystania floty w ujęciu kalendarzowym.</p>
+<ul class="simple">
+<li><p><strong>Grupowanie</strong>: Agreguje sumę godzin nalotu dla każdego szybowca z podziałem na miesiące.</p></li>
+</ul>
+<p><strong>v_piloci_z_nalotem_min</strong>
+Filtr bezpieczeństwa i aktywności.</p>
+<ul class="simple">
+<li><p><strong>Kryterium</strong>: Wyświetla tylko tych pilotów, których suma nalotu w systemie wynosi co najmniej 5 godzin (klauzula <code class="docutils literal notranslate"><span class="pre">HAVING</span></code>).</p></li>
+</ul>
+<p><strong>v_usterki_otwarte</strong>
+Raport o gotowości floty.</p>
+<ul class="simple">
+<li><p><strong>Logika</strong>: Zlicza liczbę aktywnych (niezamkniętych) usterek dla każdego znaku rejestracyjnego.</p></li>
+</ul>
+</section>
+</section>
+<section id="analiza-normalizacji-i-zaleznosci-funkcyjnych">
+<h2>Analiza Normalizacji i Zależności Funkcyjnych<a class="headerlink" href="#analiza-normalizacji-i-zaleznosci-funkcyjnych" title="Link to this heading"></a></h2>
+<p>Struktura bazy danych została poddana procesowi dekompozycji w celu osiągnięcia <strong>Trzeciej Postaci Normalnej (3NF)</strong>:</p>
+<ol class="arabic simple">
+<li><p><strong>Pierwsza Postać Normalna (1NF)</strong>: Wszystkie atrybuty w tabelach są atomowe (np. rozdzielenie imienia i nazwiska pilota, brak list wartości w jednej komórce) .</p></li>
+<li><p><strong>Druga Postać Normalna (2NF)</strong>: Wszystkie kolumny niekluczowe są w pełni zależne funkcyjnie od całego klucza głównego. W tabeli asocjacyjnej <code class="docutils literal notranslate"><span class="pre">lot_pilot</span></code> rola jest zależna od pary (id_lot, id_pilot).</p></li>
+<li><p><strong>Trzecia Postać Normalna (3NF)</strong>: Wyeliminowano zależności przechodnie. Dane o szybowcu (znak rejestracyjny, typ) nie są powielane w tabeli lotów – lot przechowuje jedynie klucz obcy <code class="docutils literal notranslate"><span class="pre">id_szybowiec</span></code>.</p></li>
+</ol>
+<p><strong>Eliminacja relacji wiele-do-wielu (n-m)</strong>:
+Relacja między Pilotami a Lotami została rozwiązana za pomocą tabeli łączącej <code class="docutils literal notranslate"><span class="pre">lot_pilot</span></code>, co pozwala na przypisanie wielu osób do jednego lotu (np. uczeń i instruktor) oraz wielu lotów do jednego pilota.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="modules.html" class="btn btn-neutral float-left" title="Dokumentacja Techniczna PDT" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Poprzedni</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Prawa zastrzeżone 2026, Dobrawa Rumszewicz.</p>
+  </div>
+
+  Zbudowano w <a href="https://www.sphinx-doc.org/">Sphinx</a> używając
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    dostarczone przez <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

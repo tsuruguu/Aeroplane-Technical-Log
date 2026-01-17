@@ -1,0 +1,469 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="pl" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>routes.reports &mdash; PDT 1.0 - dokumentacja</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=331e28ce"></script>
+      <script src="../../_static/doctools.js?v=9a2dae69"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/translations.js?v=da4973ce"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Indeks" href="../../genindex.html" />
+    <link rel="search" title="Szukaj" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            PDT
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Szukaj" aria-label="Szukaj" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Logika Aplikacji (Python)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Dokumentacja Techniczna PDT</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architektura Danych (SQL)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../database.html">Specyfikacja Techniczna Bazy Danych PDT</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PDT</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Kod modułu</a></li>
+      <li class="breadcrumb-item active">routes.reports</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Kod źródłowy modułu routes.reports</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Moduł raportów i statystyk z rozbudowanym audytem dostępu.</span>
+
+<span class="sd">Generuje zestawienia finansowe, rankingi nalotów pilotów, statystyki szybowców</span>
+<span class="sd">oraz umożliwia eksport tych danych do plików CSV.</span>
+
+<span class="sd">**System Logowania Audytowego (Data Privacy Audit)**</span>
+
+<span class="sd">Wszystkie operacje eksportu są traktowane jako zdarzenia wysokiego ryzyka i logowane</span>
+<span class="sd">do kanału `security` z uwzględnieniem filtrów RODO i IP sprawcy.</span>
+
+<span class="sd">Przykład logu eksportu finansowego (JSON)::</span>
+<span class="sd">{</span>
+<span class="sd">    &quot;timestamp&quot;: &quot;2026-01-11T20:45:12.123Z&quot;,</span>
+<span class="sd">    &quot;level&quot;: &quot;INFO&quot;,</span>
+<span class="sd">    &quot;event&quot;: &quot;FINANCIAL_DATA_EXPORT&quot;,</span>
+<span class="sd">    &quot;user&quot;: &quot;admin_jan&quot;,</span>
+<span class="sd">    &quot;report&quot;: &quot;saldo_pilota.csv&quot;,</span>
+<span class="sd">    &quot;src_ip&quot;: &quot;192.168.1.100&quot;,</span>
+<span class="sd">    &quot;signature&quot;: &quot;df8a92...&quot;</span>
+<span class="sd">}</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">csv</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">Blueprint</span><span class="p">,</span> <span class="n">render_template</span><span class="p">,</span> <span class="n">Response</span><span class="p">,</span> <span class="n">request</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask_login</span><span class="w"> </span><span class="kn">import</span> <span class="n">login_required</span><span class="p">,</span> <span class="n">current_user</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="n">text</span>
+<span class="c1"># from database import db</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">extensions</span><span class="w"> </span><span class="kn">import</span> <span class="n">db</span>
+<span class="n">reports_bp</span> <span class="o">=</span> <span class="n">Blueprint</span><span class="p">(</span><span class="s1">&#39;reports&#39;</span><span class="p">,</span> <span class="vm">__name__</span><span class="p">)</span>
+<span class="n">app_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;application&quot;</span><span class="p">)</span>
+<span class="n">security_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;security&quot;</span><span class="p">)</span>
+<span class="n">error_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;error&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="dashboard">
+<a class="viewcode-back" href="../../modules.html#routes.reports.dashboard">[dokumentacja]</a>
+<span class="nd">@reports_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/raporty&#39;</span><span class="p">)</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">dashboard</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Centrum analityki operacyjno-finansowej systemu.</span>
+
+<span class="sd">        Prezentuje zagregowane dane, wykorzystując moc obliczeniową silnika bazy danych (PostgreSQL).</span>
+
+<span class="sd">        **Optymalizacja Wydajności:**</span>
+
+<span class="sd">        Zamiast pobierać tysiące rekordów lotów do Pythona i sumować je w pętli,</span>
+<span class="sd">        funkcja korzysta z gotowych widoków SQL (`pdt_rpt...` i `pdt_core...`).</span>
+<span class="sd">        Baza danych wykonuje agregacje (`SUM`, `COUNT`, `GROUP BY`) znacznie szybciej,</span>
+<span class="sd">        a Python otrzymuje tylko gotowe wyniki do wyświetlenia.</span>
+
+<span class="sd">        **Logika Finansowa:**</span>
+
+<span class="sd">        Sekcja &quot;Dłużnicy&quot; i &quot;Saldo&quot; opiera się na widoku `v_rozliczenie_finansowe`, który</span>
+<span class="sd">        dynamicznie wylicza koszt każdego lotu w oparciu o cennik szybowca, rodzaj startu</span>
+<span class="sd">        oraz rolę pilota (np. podział kosztów 50/50 w locie koleżeńskim).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">app_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ACCESS_REPORTS_DASHBOARD&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;ANALYTICS_VIEW&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
+    <span class="p">})</span>
+
+    <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span><span class="p">:</span>
+        <span class="n">sql_piloci</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                          SELECT id_pilot, imie, nazwisko, licencja, nalot_h, pokazywac_dane, pokazywac_licencje</span>
+<span class="s2">                          FROM pdt_core.v_pilot_nalot</span>
+<span class="s2">                          ORDER BY nalot_h DESC</span>
+<span class="s2">                          &quot;&quot;&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sql_piloci</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM pdt_core.v_pilot_nalot ORDER BY nalot_h DESC&quot;</span><span class="p">)</span>
+
+    <span class="n">piloci_raw</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql_piloci</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="c1"># Przetwarzanie na słowniki (Logika: Marta widzi Martę)</span>
+    <span class="n">piloci</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">piloci_raw</span><span class="p">:</span>
+        <span class="n">p_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">_mapping</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">p_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id_pilot&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">:</span>
+            <span class="n">p_dict</span><span class="p">[</span><span class="s1">&#39;pokazywac_dane&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">p_dict</span><span class="p">[</span><span class="s1">&#39;pokazywac_licencje&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">piloci</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p_dict</span><span class="p">)</span>
+
+    <span class="n">my_stats</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;rank&#39;</span><span class="p">:</span> <span class="s1">&#39;-&#39;</span><span class="p">,</span> <span class="s1">&#39;hours&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}</span>
+    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">piloci</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id_pilot&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">:</span>
+            <span class="n">my_stats</span><span class="p">[</span><span class="s1">&#39;rank&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">index</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">my_stats</span><span class="p">[</span><span class="s1">&#39;hours&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nalot_h&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+            <span class="k">break</span>
+
+    <span class="n">szybowce</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+        <span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM pdt_core.v_szybowiec_nalot ORDER BY CAST(nalot_calk_h AS FLOAT) DESC&quot;</span><span class="p">)</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="n">query_params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;p_id&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">}</span>
+    <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span><span class="p">:</span>
+        <span class="n">sql_finanse</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                           SELECT r.*, d.pilot_1, d.pilot_2</span>
+<span class="s2">                           FROM pdt_rpt.v_rozliczenie_finansowe r</span>
+<span class="s2">                                    JOIN pdt_rpt.v_dziennik_lotow d USING (id_lot)</span>
+<span class="s2">                           WHERE r.kwota_do_zaplaty &gt; 0</span>
+<span class="s2">                             AND r.deleted_at IS NULL</span>
+<span class="s2">                           ORDER BY r.id_lot DESC</span>
+<span class="s2">                           &quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">sql_sumy</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM pdt_rpt.v_saldo_pilota ORDER BY saldo ASC&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sql_finanse</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                           SELECT r.*, d.pilot_1, d.pilot_2</span>
+<span class="s2">                           FROM pdt_rpt.v_rozliczenie_finansowe r</span>
+<span class="s2">                                    JOIN pdt_rpt.v_dziennik_lotow d USING (id_lot)</span>
+<span class="s2">                           WHERE r.kwota_do_zaplaty &gt; 0</span>
+<span class="s2">                             AND r.id_pilot = :p_id</span>
+<span class="s2">                             AND r.deleted_at IS NULL</span>
+<span class="s2">                           ORDER BY r.id_lot DESC</span>
+<span class="s2">                           &quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">sql_sumy</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM pdt_rpt.v_saldo_pilota WHERE id_pilot = :p_id&quot;</span><span class="p">)</span>
+
+    <span class="n">dluznicy</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql_finanse</span><span class="p">,</span> <span class="n">query_params</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+    <span class="n">sumy_dlugow</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql_sumy</span><span class="p">,</span> <span class="n">query_params</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+    <span class="n">total_cost_sum</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">kwota_do_zaplaty</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">dluznicy</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;reports_dashboard.html&#39;</span><span class="p">,</span>
+                           <span class="n">piloci</span><span class="o">=</span><span class="n">piloci</span><span class="p">,</span> <span class="n">szybowce</span><span class="o">=</span><span class="n">szybowce</span><span class="p">,</span> <span class="n">dluznicy</span><span class="o">=</span><span class="n">dluznicy</span><span class="p">,</span>
+                           <span class="n">sumy_dlugow</span><span class="o">=</span><span class="n">sumy_dlugow</span><span class="p">,</span> <span class="n">my_stats</span><span class="o">=</span><span class="n">my_stats</span><span class="p">,</span> <span class="n">total_cost_sum</span><span class="o">=</span><span class="n">total_cost_sum</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="export_piloci_csv">
+<a class="viewcode-back" href="../../modules.html#routes.reports.export_piloci_csv">[dokumentacja]</a>
+<span class="nd">@reports_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/raporty/export/piloci&#39;</span><span class="p">)</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">export_piloci_csv</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Eksport rankingu nalotów z filtrowaniem prywatności.</span>
+
+<span class="sd">        Generuje plik CSV z listą pilotów i ich wylatanymi godzinami.</span>
+
+<span class="sd">        **Logika RODO (Data Masking):**</span>
+
+<span class="sd">        Funkcja sprawdza rolę pobierającego:</span>
+
+<span class="sd">        - **Admin:** Otrzymuje pełną listę z imionami i nazwiskami.</span>
+<span class="sd">        - **Zwykły Użytkownik:** Otrzymuje listę, na której dane pilotów, którzy nie wyrazili</span>
+<span class="sd">          zgody (`pokazywac_dane = false`), są zastąpione gwiazdkami (`***`).</span>
+<span class="sd">          Dzięki temu zachowana jest transparentność rankingu (widać, że ktoś ma X godzin),</span>
+<span class="sd">          ale chroniona jest tożsamość osób dbających o prywatność.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">security_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;EXPORT_PILOT_RANKING&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;DATA_EXPORT_PII&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+        <span class="s1">&#39;pii_masked&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">!=</span> <span class="s1">&#39;admin&#39;</span>
+    <span class="p">})</span>
+
+    <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span><span class="p">:</span>
+        <span class="n">sql</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                   SELECT imie, nazwisko, licencja, nalot_h, true as pokazywac_dane, true as pokazywac_licencje</span>
+<span class="s2">                   FROM pdt_core.v_pilot_nalot</span>
+<span class="s2">                   ORDER BY nalot_h DESC</span>
+<span class="s2">                   &quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sql</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM pdt_core.v_pilot_nalot ORDER BY nalot_h DESC&quot;</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="n">output</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;;&#39;</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;Imię&#39;</span><span class="p">,</span> <span class="s1">&#39;Nazwisko&#39;</span><span class="p">,</span> <span class="s1">&#39;Licencja&#39;</span><span class="p">,</span> <span class="s1">&#39;Nalot (h)&#39;</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span> <span class="ow">or</span> <span class="n">p</span><span class="o">.</span><span class="n">id_pilot</span> <span class="o">==</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span> <span class="ow">or</span> <span class="n">p</span><span class="o">.</span><span class="n">pokazywac_dane</span><span class="p">:</span>
+            <span class="n">fname</span><span class="p">,</span> <span class="n">lname</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">imie</span><span class="p">,</span> <span class="n">p</span><span class="o">.</span><span class="n">nazwisko</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fname</span><span class="p">,</span> <span class="n">lname</span> <span class="o">=</span> <span class="s2">&quot;***&quot;</span><span class="p">,</span> <span class="s2">&quot;***&quot;</span>
+
+        <span class="n">lic</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">licencja</span> <span class="k">if</span> <span class="p">(</span><span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span> <span class="ow">or</span> <span class="n">p</span><span class="o">.</span><span class="n">id_pilot</span> <span class="o">==</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span> <span class="ow">or</span> <span class="n">p</span><span class="o">.</span><span class="n">pokazywac_licencje</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;***&quot;</span>
+        <span class="n">nalot_h</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">nalot_h</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">fname</span><span class="p">,</span> <span class="n">lname</span><span class="p">,</span> <span class="n">lic</span><span class="p">,</span> <span class="n">nalot_h</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">generate_csv_response</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;ranking_pilotow.csv&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="export_finanse_csv">
+<a class="viewcode-back" href="../../modules.html#routes.reports.export_finanse_csv">[dokumentacja]</a>
+<span class="nd">@reports_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/raporty/export/finanse&#39;</span><span class="p">)</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">export_finanse_csv</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Szczegółowy wyciąg operacji lotniczych (Billing Export).</span>
+
+<span class="sd">        Generuje zestawienie wszystkich lotów obciążających konto użytkownika.</span>
+
+<span class="sd">        **Zastosowanie:**</span>
+
+<span class="sd">        Plik ten służy pilotom do weryfikacji poprawności naliczeń (np. czy lot</span>
+<span class="sd">        został policzony jako szkolny czy samodzielny) oraz jako podstawa do rozliczeń księgowych.</span>
+
+<span class="sd">        **Bezpieczeństwo:**</span>
+
+<span class="sd">        Zwykły pilot może pobrać TYLKO swoje operacje (`WHERE id_pilot = :p_id`).</span>
+<span class="sd">        Próba manipulacji ID w zapytaniu jest niemożliwa dzięki pobieraniu ID z bezpiecznej sesji (`current_user`).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">security_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;EXPORT_FINANCIAL_RECORDS&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;DATA_EXPORT_FINANCIAL&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+        <span class="s1">&#39;admin_mode&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span>
+    <span class="p">})</span>
+
+    <span class="n">query_params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;p_id&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">}</span>
+
+    <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span><span class="p">:</span>
+        <span class="n">sql</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                   SELECT r.*, d.pilot_1, d.pilot_2</span>
+<span class="s2">                   FROM pdt_rpt.v_rozliczenie_finansowe r</span>
+<span class="s2">                            JOIN pdt_rpt.v_dziennik_lotow d USING (id_lot)</span>
+<span class="s2">                   WHERE r.kwota_do_zaplaty &gt; 0</span>
+<span class="s2">                     AND r.deleted_at IS NULL</span>
+<span class="s2">                   ORDER BY r.id_lot DESC</span>
+<span class="s2">                   &quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ID Lotu&#39;</span><span class="p">,</span> <span class="s1">&#39;Imię Płatnika&#39;</span><span class="p">,</span> <span class="s1">&#39;Nazwisko Płatnika&#39;</span><span class="p">,</span> <span class="s1">&#39;Rola&#39;</span><span class="p">,</span> <span class="s1">&#39;Cena Total&#39;</span><span class="p">,</span> <span class="s1">&#39;Część płatnika&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sql</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                   SELECT r.*, d.pilot_1, d.pilot_2</span>
+<span class="s2">                   FROM pdt_rpt.v_rozliczenie_finansowe r</span>
+<span class="s2">                            JOIN pdt_rpt.v_dziennik_lotow d USING (id_lot)</span>
+<span class="s2">                   WHERE r.kwota_do_zaplaty &gt; 0</span>
+<span class="s2">                     AND r.id_pilot = :p_id</span>
+<span class="s2">                     AND r.deleted_at IS NULL</span>
+<span class="s2">                   ORDER BY r.id_lot DESC</span>
+<span class="s2">                   &quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">query_params</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+        <span class="n">header</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ID Lotu&#39;</span><span class="p">,</span> <span class="s1">&#39;Pilot 1&#39;</span><span class="p">,</span> <span class="s1">&#39;Pilot 2&#39;</span><span class="p">,</span> <span class="s1">&#39;Twoja Rola&#39;</span><span class="p">,</span> <span class="s1">&#39;Cena Total&#39;</span><span class="p">,</span> <span class="s1">&#39;Twoja część&#39;</span><span class="p">]</span>
+
+    <span class="n">output</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;;&#39;</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">(</span><span class="n">header</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+        <span class="n">cena_t</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">f</span><span class="o">.</span><span class="n">cena_lotu_total</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">kwota_z</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">f</span><span class="o">.</span><span class="n">kwota_do_zaplaty</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span><span class="p">:</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">f</span><span class="o">.</span><span class="n">id_lot</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">imie</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">nazwisko</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">rola</span><span class="p">,</span> <span class="n">cena_t</span><span class="p">,</span> <span class="n">kwota_z</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">f</span><span class="o">.</span><span class="n">id_lot</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">pilot_1</span> <span class="ow">or</span> <span class="s2">&quot;---&quot;</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">pilot_2</span> <span class="ow">or</span> <span class="s2">&quot;---&quot;</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">rola</span><span class="p">,</span> <span class="n">cena_t</span><span class="p">,</span> <span class="n">kwota_z</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">generate_csv_response</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;rozliczenie_szczegolowe.csv&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="export_szybowce_csv">
+<a class="viewcode-back" href="../../modules.html#routes.reports.export_szybowce_csv">[dokumentacja]</a>
+<span class="nd">@reports_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/raporty/export/szybowce&#39;</span><span class="p">)</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">export_szybowce_csv</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Raport wykorzystania floty (Asset Utilization).</span>
+
+<span class="sd">        Generuje statystykę, które szybowce latają najwięcej.</span>
+<span class="sd">        Dane te są kluczowe dla Zarządu przy podejmowaniu decyzji o zakupie nowych</span>
+<span class="sd">        szybowców lub sprzedaży tych najmniej używanych (nierentownych).</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Response: Plik `nalot_szybowcow.csv`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">app_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;EXPORT_AIRCRAFT_STATS&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;DATA_EXPORT&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+        <span class="s1">&#39;report_type&#39;</span><span class="p">:</span> <span class="s1">&#39;AIRCRAFT_UTILIZATION&#39;</span>
+    <span class="p">})</span>
+
+    <span class="n">sql</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM pdt_core.v_szybowiec_nalot ORDER BY CAST(nalot_calk_h AS FLOAT) DESC&quot;</span><span class="p">)</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="n">output</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;;&#39;</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;Znak rej.&#39;</span><span class="p">,</span> <span class="s1">&#39;Typ&#39;</span><span class="p">,</span> <span class="s1">&#39;Suma nalotu (h)&#39;</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+        <span class="n">nalot_c</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">nalot_calk_h</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">znak_rej</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">typ</span><span class="p">,</span> <span class="n">nalot_c</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">generate_csv_response</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;nalot_szybowcow.csv&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="export_saldo_csv">
+<a class="viewcode-back" href="../../modules.html#routes.reports.export_saldo_csv">[dokumentacja]</a>
+<span class="nd">@reports_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/raporty/export/saldo&#39;</span><span class="p">)</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">export_saldo_csv</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Zestawienie sald finansowych (Financial Snapshot).</span>
+
+<span class="sd">        Eksportuje aktualny stan kont użytkowników (Wpłaty - Koszty Lotów).</span>
+
+<span class="sd">        **Dla Admina:** Służy do szybkiej identyfikacji dłużników (kto jest &quot;na minusie&quot;).</span>
+<span class="sd">        **Dla Pilota:** Służy jako potwierdzenie salda na dzień dzisiejszy.</span>
+
+<span class="sd">        Opiera się na widoku `pdt_rpt.v_saldo_pilota`, który gwarantuje, że saldo w CSV</span>
+<span class="sd">        jest identyczne z tym wyświetlanym na stronie (Single Source of Truth).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">security_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;EXPORT_USER_BALANCES&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;DATA_EXPORT_FINANCIAL&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+        <span class="s1">&#39;target_scope&#39;</span><span class="p">:</span> <span class="s1">&#39;ALL&#39;</span> <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span> <span class="k">else</span> <span class="s1">&#39;SELF&#39;</span>
+    <span class="p">})</span>
+
+    <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span><span class="p">:</span>
+        <span class="n">sql</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM pdt_rpt.v_saldo_pilota ORDER BY saldo ASC&quot;</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sql</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM pdt_rpt.v_saldo_pilota WHERE id_pilot = :p_id&quot;</span><span class="p">)</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="p">{</span><span class="s1">&#39;p_id&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">})</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="n">output</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">()</span>
+    <span class="n">writer</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">writer</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;;&#39;</span><span class="p">)</span>
+    <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;Imię&#39;</span><span class="p">,</span> <span class="s1">&#39;Nazwisko&#39;</span><span class="p">,</span> <span class="s1">&#39;Suma lotów (koszt)&#39;</span><span class="p">,</span> <span class="s1">&#39;Suma wpłat&#39;</span><span class="p">,</span> <span class="s1">&#39;Saldo końcowe&#39;</span><span class="p">])</span>
+
+    <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+        <span class="n">s_koszt</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">suma_kosztow</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">s_wplat</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">suma_wplat</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">s_saldo</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">s</span><span class="o">.</span><span class="n">saldo</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">s</span><span class="o">.</span><span class="n">imie</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">nazwisko</span><span class="p">,</span> <span class="n">s_koszt</span><span class="p">,</span> <span class="n">s_wplat</span><span class="p">,</span> <span class="n">s_saldo</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="n">generate_csv_response</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="s2">&quot;saldo_pilota.csv&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="generate_csv_response">
+<a class="viewcode-back" href="../../modules.html#routes.reports.generate_csv_response">[dokumentacja]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_csv_response</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">filename</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Uniwersalny generator odpowiedzi HTTP dla plików CSV.</span>
+
+<span class="sd">        Funkcja pomocnicza (Utility), która standaryzuje sposób wysyłania plików do przeglądarki.</span>
+
+<span class="sd">        **Szczegóły Techniczne:**</span>
+
+<span class="sd">        1.  **Kodowanie UTF-8-SIG:** Dodaje na początku pliku niewidoczny znak BOM (Byte Order Mark).</span>
+<span class="sd">            Jest to &quot;hack&quot; konieczny dla programu Microsoft Excel, aby poprawnie wyświetlał</span>
+<span class="sd">            polskie znaki (ą, ę, ś, ć). Bez tego Excel otwierałby pliki jako &quot;krzaczki&quot;.</span>
+<span class="sd">        2.  **Nagłówki MIME:** Ustawia `Content-Disposition: attachment`, co wymusza na przeglądarce</span>
+<span class="sd">            okno zapisu pliku zamiast próby wyświetlenia tekstu w oknie.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            output (io.StringIO): Bufor pamięci z danymi tekstowymi.</span>
+<span class="sd">            filename (str): Nazwa pliku, którą zobaczy użytkownik.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">output</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">Response</span><span class="p">(</span>
+        <span class="n">output</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8-sig&#39;</span><span class="p">),</span>
+        <span class="n">mimetype</span><span class="o">=</span><span class="s2">&quot;text/csv&quot;</span><span class="p">,</span>
+        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;Content-Disposition&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;attachment;filename=</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}</span>
+    <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Prawa zastrzeżone 2026, Dobrawa Rumszewicz.</p>
+  </div>
+
+  Zbudowano w <a href="https://www.sphinx-doc.org/">Sphinx</a> używając
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    dostarczone przez <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

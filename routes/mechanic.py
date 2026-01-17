@@ -538,7 +538,7 @@ def add_inspection():
         'aircraft_id': id_szybowiec,
         'inspection_type': typ,
         'src_ip': request.remote_addr,
-        'message': f"Zatwierdzono przegląd typu {typ} - reset resursów"
+        'details': f"Zatwierdzono przegląd typu {typ} - reset resursów"
     })
 
     db.session.execute(text("""

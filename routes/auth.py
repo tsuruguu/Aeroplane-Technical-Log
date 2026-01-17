@@ -83,7 +83,7 @@ def login():
                         'event': 'AUTH_LOCKOUT',
                         'user': login_input,
                         'src_ip': src_ip,
-                        'message': 'Próba logowania na konto zablokowane administracyjnie'
+                        'details': 'Próba logowania na konto zablokowane administracyjnie'
                     })
                     flash('To konto zostało zablokowane przez administratora.', 'danger')
                     return render_template('login.html')
@@ -94,7 +94,7 @@ def login():
                 'user': user.login,
                 'role': user.rola,
                 'src_ip': src_ip,
-                'message': 'Użytkownik zalogowany pomyślnie'
+                'details': 'Użytkownik zalogowany pomyślnie'
             })
             flash('Zalogowano pomyślnie!', 'success')
             return redirect(url_for('index'))
@@ -103,7 +103,7 @@ def login():
                 'event': 'AUTH_FAILURE',
                 'user_attempted': login_input,
                 'src_ip': src_ip,
-                'message': 'Nieudana próba logowania: błędne poświadczenia'
+                'details': 'Nieudana próba logowania: błędne poświadczenia'
             })
             flash('Błędny login lub hasło.', 'danger')
 
@@ -131,7 +131,7 @@ def logout():
         'event': 'AUTH_LOGOUT',
         'user': user_name,
         'src_ip': request.remote_addr,
-        'message': 'Użytkownik wylogował się poprawnie'
+        'details': 'Użytkownik wylogował się poprawnie'
     })
     flash('Wylogowano pomyślnie.', 'info')
     return redirect(url_for('auth.login'))
@@ -191,7 +191,7 @@ def register():
             'user': current_user.login,
             'target': 'register_page',
             'src_ip': request.remote_addr,
-            'message': 'Próba dostępu do rejestracji bez uprawnień admina'
+            'details': 'Próba dostępu do rejestracji bez uprawnień admina'
         })
         flash('Brak uprawnień!', 'danger')
         return redirect(url_for('index'))
@@ -228,7 +228,7 @@ def register():
                 'new_user': login_new,
                 'new_pilot_id': new_pilot_id,
                 'src_ip': request.remote_addr,
-                'message': f'Administrator utworzył nowe konto dla {imie} {nazwisko}'
+                'details': f'Administrator utworzył nowe konto dla {imie} {nazwisko}'
             })
 
             flash(f'Utworzono konto dla {imie} {nazwisko}. HASŁO TYMCZASOWE: {temp_password}', 'success')
@@ -313,7 +313,7 @@ def profile():
                         'event': 'CREDENTIAL_UPDATE_FAIL',
                         'user': current_user.login,
                         'src_ip': request.remote_addr,
-                        'message': 'Błędne stare hasło przy próbie zmiany'
+                        'details': 'Błędne stare hasło przy próbie zmiany'
                     })
                     flash('Błędne stare hasło!', 'danger')
                 elif nowe != nowe_potw:
@@ -329,7 +329,7 @@ def profile():
                         'event': 'CREDENTIAL_UPDATE_SUCCESS',
                         'user': current_user.login,
                         'src_ip': request.remote_addr,
-                        'message': 'Hasło zostało zmienione pomyślnie'
+                        'details': 'Hasło zostało zmienione pomyślnie'
                     })
                     flash('Hasło zostało zmienione pomyślnie.', 'success')
                     return redirect(url_for('auth.profile'))
@@ -348,7 +348,7 @@ def profile():
                     'event': 'GDPR_UPDATE',
                     'user': current_user.login,
                     'src_ip': request.remote_addr,
-                    'message': 'Użytkownik zaktualizował ustawienia RODO'
+                    'details': 'Użytkownik zaktualizował ustawienia RODO'
                 })
                 db.session.commit()
                 flash('Ustawienia prywatności zostały zapisane!', 'success')

@@ -163,12 +163,12 @@ def export_piloci_csv():
     writer.writerow(['Imię', 'Nazwisko', 'Licencja', 'Nalot (h)'])
 
     for p in res:
-        if current_user.rola == 'admin' or p.pokazywac_dane:
+        if current_user.rola == 'admin' or p.id_pilot == current_user.id_pilot or p.pokazywac_dane:
             fname, lname = p.imie, p.nazwisko
         else:
             fname, lname = "***", "***"
 
-        lic = p.licencja if (current_user.rola == 'admin' or p.pokazywac_licencje) else "***"
+        lic = p.licencja if (current_user.rola == 'admin' or p.id_pilot == current_user.id_pilot or p.pokazywac_licencje) else "***"
         nalot_h = f"{p.nalot_h:.2f}".replace('.', ',')
         writer.writerow([fname, lname, lic, nalot_h])
 

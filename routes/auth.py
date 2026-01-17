@@ -207,16 +207,18 @@ def register():
         nazwisko = request.form.get('nazwisko')
         login_new = request.form.get('login')
         rola = request.form.get('rola')
+        licencja = request.form.get('licencja')
+        nalot_zew = request.form.get('nalot_zew', 0)
+        saldo_pocz = request.form.get('saldo_pocz', 0)
 
         temp_password = generate_strong_password()
         hashed_password = generate_password_hash(temp_password)
 
         try:
             res = db.session.execute(text("""
-                                          INSERT INTO pdt_core.pilot (imie, nazwisko)
-                                          VALUES (:i, :n)
-                                          RETURNING id_pilot
-                                          """), {'i': imie, 'n': nazwisko})
+                                          INSERT INTO pdt_core.pilot (imie, nazwisko, licencja, nalot_zewnetrzny)
+                                          VALUES (:i, :n, :lic, :nz) RETURNING id_pilot
+                                          """), {'i': imie, 'n': nazwisko, 'lic': licencja, 'nz': nalot_zew})
             new_pilot_id = res.fetchone()[0]
 
             db.session.execute(text("""
@@ -226,6 +228,13 @@ def register():
                                    'login': login_new, 'password': hashed_password,
                                    'rola': rola, 'id_pilot': new_pilot_id
                                })
+
+            if float(saldo_pocz) > 0:
+                db.session.execute(text("""
+                                        INSERT INTO pdt_core.wplata (id_pilot, kwota, tytul)
+                                        VALUES (:id, :kwota, 'Wpłata początkowa przy otwarciu konta')
+                                        """), {'id': new_pilot_id, 'kwota': saldo_pocz})
+
             db.session.commit()
 
             security_logger.info("USER_CREATED", extra={

@@ -17,28 +17,34 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label fw-bold">Szybowiec</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-cursor-fill"></i></span>
-                                <select name="id_szybowiec" class="form-select" required>
-                                    {% for s in szybowce %}
-                                    <option value="{{ s.id_szybowiec }}">{{ s.znak_rej }} ({{ s.typ }})</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
+                            <select name="id_szybowiec" class="form-select" required>
+                                {% for s in szybowce %}
+                                <option value="{{ s.id_szybowiec }}">{{ s.znak_rej }} ({{ s.typ }})</option>
+                                {% endfor %}
+                            </select>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label fw-bold">Lotnisko Startu</label>
-                            <select name="id_start" class="form-select">
+                            <select name="id_start" class="form-select" required>
                                 {% for l in lotniska %}
                                 <option value="{{ l.id_lotnisko }}">{{ l.nazwa }} ({{ l.kod }})</option>
                                 {% endfor %}
                             </select>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label class="form-label fw-bold">Lotnisko Lądowania</label>
+                            <select name="id_ladowanie" class="form-select" required>
+                                {% for l in lotniska %}
+                                <option value="{{ l.id_lotnisko }}">{{ l.nazwa }} ({{ l.kod }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
                             <label class="form-label fw-bold">Rodzaj Startu</label>
                             <select name="rodzaj_startu" class="form-select">
                                 <option value="wyciagarka">Wyciągarka</option>

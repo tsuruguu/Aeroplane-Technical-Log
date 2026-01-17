@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card shadow border-0">
+            <div class="card-header bg-primary text-white py-3">
+                <h4 class="mb-0 fw-bold"><i class="bi bi-pencil-square me-2"></i>Edycja Szybowca: {{ s.znak_rej }}</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Znak Rejestracyjny</label>
+                        <input type="text" name="znak_rej" class="form-control" value="{{ s.znak_rej }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Typ / Model</label>
+                        <input type="text" name="typ" class="form-control" value="{{ s.typ }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Stawka za godzinę (PLN)</label>
+                        <div class="input-group">
+                            <input type="number" step="0.01" name="cena_za_h" class="form-control" value="{{ s.cena_za_h }}" required>
+                            <span class="input-group-text">PLN</span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg shadow-sm">Zapisz Zmiany</button>
+                        <a href="{{ url_for('gliders.index') }}" class="btn btn-outline-secondary">Anuluj i wróć</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

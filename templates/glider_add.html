@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card shadow border-0">
+            <div class="card-header bg-success text-white py-3 text-center">
+                <h4 class="mb-0 fw-bold"><i class="bi bi-plus-circle me-2"></i>Nowy Statek Powietrzny</h4>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ url_for('gliders.add') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Znak Rejestracyjny</label>
+                        <input type="text" name="znak_rej" class="form-control" placeholder="Np. SP-1001" required autofocus>
+                        <div class="form-text">Oficjalny znak rej. (musi być unikalny).</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Typ / Model</label>
+                        <input type="text" name="typ" class="form-control" placeholder="Np. SZD-30 Pirat" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Stawka Godzinowa (PLN)</label>
+                        <div class="input-group">
+                            <input type="number" step="0.01" name="cena_za_h" class="form-control" placeholder="0.00" required>
+                            <span class="input-group-text">PLN / h</span>
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-success btn-lg shadow-sm">Zarejestruj Szybowiec</button>
+                        <a href="{{ url_for('gliders.index') }}" class="btn btn-outline-secondary">Anuluj i wróć</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-primary"><i class="bi bi-propeller me-2"></i>Zarządzanie Flotą Szybowców</h2>
+        {% if current_user.rola in ['admin', 'mechanik'] %}
+        <a href="{{ url_for('gliders.add') }}" class="btn btn-primary shadow-sm">
+            <i class="bi bi-plus-lg"></i> Dodaj nowy szybowiec
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0" style="width: 100%;">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-center">ID</th>
+                            <th>Znak Rejestracyjny</th>
+                            <th>Typ / Model</th>
+                            <th class="text-center">Stawka (PLN/h)</th>
+                            <th class="text-center" style="background-color: rgba(0,0,0,0.03); width: 180px;">Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in szybowce %}
+                        <tr>
+                            <td class="text-center"><span class="badge bg-secondary">{{ s.id_szybowiec }}</span></td>
+                            <td class="fw-bold text-primary">{{ s.znak_rej }}</td>
+                            <td>{{ s.typ }}</td>
+                            <td class="text-center">{{ "%.2f"|format(s.cena_za_h) }} PLN</td>
+                            <td style="background-color: rgba(0,0,0,0.03);">
+                                <div class="d-flex gap-1 justify-content-center">
+                                    <a href="{{ url_for('gliders.edit', id=s.id_szybowiec) }}"
+                                       class="btn btn-sm btn-primary py-1 px-2 shadow-sm"
+                                       title="Edytuj">
+                                        <i class="bi bi-pencil"></i> Edytuj
+                                    </a>
+
+                                    {% if current_user.rola == 'admin' or current_user.rola == 'mechanik' %}
+                                    <form action="{{ url_for('gliders.delete', id=s.id_szybowiec) }}" method="POST"
+                                          onsubmit="return confirm('Czy na pewno chcesz usunąć ten szybowiec? Operacja jest nieodwracalna (soft-delete).');"
+                                          style="margin: 0;">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-sm btn-danger py-1 px-2 shadow-sm" title="Usuń">
+                                            <i class="bi bi-trash"></i> Usuń
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">Brak aktywnej floty w systemie.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

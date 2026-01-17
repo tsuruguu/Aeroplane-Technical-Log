@@ -294,16 +294,18 @@
         <span class="n">nazwisko</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nazwisko&#39;</span><span class="p">)</span>
         <span class="n">login_new</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;login&#39;</span><span class="p">)</span>
         <span class="n">rola</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;rola&#39;</span><span class="p">)</span>
+        <span class="n">licencja</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;licencja&#39;</span><span class="p">)</span>
+        <span class="n">nalot_zew</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nalot_zew&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">saldo_pocz</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;saldo_pocz&#39;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
 
         <span class="n">temp_password</span> <span class="o">=</span> <span class="n">generate_strong_password</span><span class="p">()</span>
         <span class="n">hashed_password</span> <span class="o">=</span> <span class="n">generate_password_hash</span><span class="p">(</span><span class="n">temp_password</span><span class="p">)</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">res</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">                                          INSERT INTO pdt_core.pilot (imie, nazwisko)</span>
-<span class="s2">                                          VALUES (:i, :n)</span>
-<span class="s2">                                          RETURNING id_pilot</span>
-<span class="s2">                                          &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;i&#39;</span><span class="p">:</span> <span class="n">imie</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">:</span> <span class="n">nazwisko</span><span class="p">})</span>
+<span class="s2">                                          INSERT INTO pdt_core.pilot (imie, nazwisko, licencja, nalot_zewnetrzny)</span>
+<span class="s2">                                          VALUES (:i, :n, :lic, :nz) RETURNING id_pilot</span>
+<span class="s2">                                          &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;i&#39;</span><span class="p">:</span> <span class="n">imie</span><span class="p">,</span> <span class="s1">&#39;n&#39;</span><span class="p">:</span> <span class="n">nazwisko</span><span class="p">,</span> <span class="s1">&#39;lic&#39;</span><span class="p">:</span> <span class="n">licencja</span><span class="p">,</span> <span class="s1">&#39;nz&#39;</span><span class="p">:</span> <span class="n">nalot_zew</span><span class="p">})</span>
             <span class="n">new_pilot_id</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
 
             <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
@@ -313,6 +315,13 @@
                                    <span class="s1">&#39;login&#39;</span><span class="p">:</span> <span class="n">login_new</span><span class="p">,</span> <span class="s1">&#39;password&#39;</span><span class="p">:</span> <span class="n">hashed_password</span><span class="p">,</span>
                                    <span class="s1">&#39;rola&#39;</span><span class="p">:</span> <span class="n">rola</span><span class="p">,</span> <span class="s1">&#39;id_pilot&#39;</span><span class="p">:</span> <span class="n">new_pilot_id</span>
                                <span class="p">})</span>
+
+            <span class="k">if</span> <span class="nb">float</span><span class="p">(</span><span class="n">saldo_pocz</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                        INSERT INTO pdt_core.wplata (id_pilot, kwota, tytul)</span>
+<span class="s2">                                        VALUES (:id, :kwota, &#39;Wpłata początkowa przy otwarciu konta&#39;)</span>
+<span class="s2">                                        &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">new_pilot_id</span><span class="p">,</span> <span class="s1">&#39;kwota&#39;</span><span class="p">:</span> <span class="n">saldo_pocz</span><span class="p">})</span>
+
             <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
 
             <span class="n">security_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;USER_CREATED&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>

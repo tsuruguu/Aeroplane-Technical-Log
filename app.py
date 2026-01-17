@@ -20,6 +20,7 @@ from routes.flights import flights_bp
 from routes.reports import reports_bp
 from routes.mechanic import mechanic_bp
 from routes.admin import admin_bp
+from routes.gliders import gliders_bp
 
 from logger_config import setup_logging
 import logging
@@ -89,6 +90,7 @@ def create_app():
     app.register_blueprint(reports_bp)
     app.register_blueprint(mechanic_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(gliders_bp)
 
     @app.route('/')
     def index():

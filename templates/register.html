@@ -29,6 +29,20 @@
                             <option value="admin">Administrator</option>
                         </select>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Numer Licencji / Status</label>
+                        <input type="text" name="licencja" class="form-control" placeholder="Np. SPL 001 / UCZEŃ">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nalot zewn. (h)</label>
+                            <input type="number" step="0.01" name="nalot_zew" class="form-control" value="0">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Wpłata pocz. (PLN)</label>
+                            <input type="number" step="0.01" name="saldo_pocz" class="form-control" value="0">
+                        </div>
+                    </div>
                     <div class="d-grid gap-2 mt-4">
                         <button type="submit" class="btn btn-primary btn-lg">Utwórz użytkownika i pilota</button>
                     </div>

@@ -22,6 +22,12 @@ Moduł: Flights (Dziennik Lotów)
    :members:
    :undoc-members:
    :show-inheritance:
+Moduł: Dliders (Flota Szybowców)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. automodule:: routes.gliders
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Moduł: Mechanic (Panel Techniczny)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

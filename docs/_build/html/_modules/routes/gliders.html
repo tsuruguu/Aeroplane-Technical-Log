@@ -1,0 +1,347 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="pl" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>routes.gliders &mdash; PDT 1.0 - dokumentacja</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=331e28ce"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../_static/translations.js?v=2827c288"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Indeks" href="../../genindex.html" />
+    <link rel="search" title="Szukaj" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            PDT
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Szukaj" aria-label="Szukaj" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Logika Aplikacji (Python)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">Dokumentacja Techniczna PDT</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architektura Danych (SQL)</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../database.html">Specyfikacja Techniczna Bazy Danych PDT</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PDT</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Kod modułu</a></li>
+      <li class="breadcrumb-item active">routes.gliders</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Kod źródłowy modułu routes.gliders</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Moduł zarządzania flotą szybowców (Gliders) z pełnym audytem operacyjnym.</span>
+
+<span class="sd">Odpowiada za ewidencję statków powietrznych: wyświetlanie listy floty,</span>
+<span class="sd">rejestrację nowych jednostek, edycję parametrów kosztowych oraz wycofywanie z eksploatacji (soft-delete).</span>
+
+<span class="sd">**System Logowania Audytowego (Aviation Compliance)**</span>
+
+<span class="sd">Każda zmiana we flocie (dodanie, edycja, usunięcie) jest logowana w formacie JSON</span>
+<span class="sd">z metadanymi umożliwiającymi śledzenie sprawcy (traceability) oraz integralność dowodową.</span>
+
+<span class="sd">Przykład logu dodania szybowca (JSON)::</span>
+<span class="sd">{</span>
+<span class="sd">    &quot;timestamp&quot;: &quot;2026-01-17T20:15:00.123Z&quot;,</span>
+<span class="sd">    &quot;level&quot;: &quot;INFO&quot;,</span>
+<span class="sd">    &quot;event&quot;: &quot;GLIDER_CREATED&quot;,</span>
+<span class="sd">    &quot;user&quot;: &quot;admin_rumsze&quot;,</span>
+<span class="sd">    &quot;glider_reg&quot;: &quot;SP-1001&quot;,</span>
+<span class="sd">    &quot;src_ip&quot;: &quot;10.0.0.8&quot;,</span>
+<span class="sd">    &quot;signature&quot;: &quot;a7b8c9...&quot;</span>
+<span class="sd">}</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">Blueprint</span><span class="p">,</span> <span class="n">render_template</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">redirect</span><span class="p">,</span> <span class="n">url_for</span><span class="p">,</span> <span class="n">flash</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask_login</span><span class="w"> </span><span class="kn">import</span> <span class="n">login_required</span><span class="p">,</span> <span class="n">current_user</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="n">text</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">extensions</span><span class="w"> </span><span class="kn">import</span> <span class="n">db</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+
+<span class="n">gliders_bp</span> <span class="o">=</span> <span class="n">Blueprint</span><span class="p">(</span><span class="s1">&#39;gliders&#39;</span><span class="p">,</span> <span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">app_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;application&quot;</span><span class="p">)</span>
+<span class="n">security_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;security&quot;</span><span class="p">)</span>
+<span class="n">error_logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;error&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="index">
+<a class="viewcode-back" href="../../modules.html#routes.gliders.index">[dokumentacja]</a>
+<span class="nd">@gliders_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/szybowce&#39;</span><span class="p">)</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">index</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Kontroler widoku floty szybowców (Widok Techniczno-Administracyjny).</span>
+
+<span class="sd">    Prezentuje listę aktywnych jednostek uprawnionym użytkownikom (admin, mechanik).</span>
+
+<span class="sd">    **Logika uprawnień**</span>
+
+<span class="sd">    - Dostęp ograniczony do ról technicznych i administracyjnych.</span>
+<span class="sd">    - Próba dostępu przez zwykłego pilota kończy się przekierowaniem i logiem naruszenia.</span>
+
+<span class="sd">    **Optymalizacja**</span>
+
+<span class="sd">    - Filtruje rekordy na poziomie bazy danych (deleted_at IS NULL).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;admin&#39;</span><span class="p">,</span> <span class="s1">&#39;mechanik&#39;</span><span class="p">]:</span>
+        <span class="n">security_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;UNAUTHORIZED_GLIDER_LIST_ACCESS&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+            <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;ACCESS_VIOLATION&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+            <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+            <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="s1">&#39;Próba wejścia w panel zarządzania flotą bez uprawnień&#39;</span>
+        <span class="p">})</span>
+        <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Brak uprawnień do zarządzania flotą.&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;index&#39;</span><span class="p">))</span>
+
+    <span class="n">app_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;ACCESS_GLIDER_LIST&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+        <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;DATA_READ&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+        <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
+    <span class="p">})</span>
+
+    <span class="n">szybowce</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                       SELECT *</span>
+<span class="s2">                                       FROM pdt_core.szybowiec</span>
+<span class="s2">                                       WHERE deleted_at IS NULL</span>
+<span class="s2">                                       ORDER BY znak_rej</span>
+<span class="s2">                                       &quot;&quot;&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;gliders_list.html&#39;</span><span class="p">,</span> <span class="n">szybowce</span><span class="o">=</span><span class="n">szybowce</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="add">
+<a class="viewcode-back" href="../../modules.html#routes.gliders.add">[dokumentacja]</a>
+<span class="nd">@gliders_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/szybowce/dodaj&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;GET&#39;</span><span class="p">,</span> <span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">add</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Obsługuje proces rejestracji nowego statku powietrznego we flocie.</span>
+
+<span class="sd">    **Bezpieczeństwo**</span>
+
+<span class="sd">    - Weryfikacja unikalności znaku rejestracyjnego (klucz UNIQUE w bazie).</span>
+<span class="sd">    - Logowanie transakcyjne utworzenia zasobu.</span>
+
+<span class="sd">    **Przepływ Logiki**</span>
+
+<span class="sd">    1. Walidacja roli użytkownika.</span>
+<span class="sd">    2. Przetworzenie danych formularza (POST).</span>
+<span class="sd">    3. Zapis do tabeli pdt_core.szybowiec.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;admin&#39;</span><span class="p">,</span> <span class="s1">&#39;mechanik&#39;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;index&#39;</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;POST&#39;</span><span class="p">:</span>
+        <span class="n">znak</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;znak_rej&#39;</span><span class="p">)</span>
+        <span class="n">typ</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;typ&#39;</span><span class="p">)</span>
+        <span class="n">cena</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cena_za_h&#39;</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                    INSERT INTO pdt_core.szybowiec (znak_rej, typ, cena_za_h)</span>
+<span class="s2">                                    VALUES (:z, :t, :c)</span>
+<span class="s2">                                    &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="n">znak</span><span class="p">,</span> <span class="s1">&#39;t&#39;</span><span class="p">:</span> <span class="n">typ</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="n">cena</span><span class="p">})</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+            <span class="n">app_logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;GLIDER_CREATED&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;GLIDER_ADD&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+                <span class="s1">&#39;glider_reg&#39;</span><span class="p">:</span> <span class="n">znak</span><span class="p">,</span>
+                <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+                <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;Dodano nowy szybowiec </span><span class="si">{</span><span class="n">znak</span><span class="si">}</span><span class="s1"> (</span><span class="si">{</span><span class="n">typ</span><span class="si">}</span><span class="s1">) ze stawką </span><span class="si">{</span><span class="n">cena</span><span class="si">}</span><span class="s1"> PLN/h&#39;</span>
+            <span class="p">})</span>
+
+            <span class="n">flash</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Szybowiec </span><span class="si">{</span><span class="n">znak</span><span class="si">}</span><span class="s1"> został dodany do floty.&#39;</span><span class="p">,</span> <span class="s1">&#39;success&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;gliders.index&#39;</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+            <span class="n">error_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;GLIDER_CREATION_FAILED: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+                <span class="s1">&#39;glider_reg&#39;</span><span class="p">:</span> <span class="n">znak</span>
+            <span class="p">})</span>
+            <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Błąd: Znak rejestracyjny musi być unikalny!&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;gliders.add&#39;</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;glider_add.html&#39;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="edit">
+<a class="viewcode-back" href="../../modules.html#routes.gliders.edit">[dokumentacja]</a>
+<span class="nd">@gliders_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/szybowce/edytuj/&lt;int:id&gt;&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;GET&#39;</span><span class="p">,</span> <span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">edit</span><span class="p">(</span><span class="nb">id</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Realizuje procedurę aktualizacji parametrów techniczno-finansowych szybowca.</span>
+
+<span class="sd">    Umożliwia modyfikację stawki godzinowej oraz modelu bez niszczenia</span>
+<span class="sd">    historycznych powiązań z wykonanymi lotami.</span>
+
+<span class="sd">    **Audyt**</span>
+
+<span class="sd">    - Każda zmiana ceny za godzinę jest rejestrowana jako zdarzenie ostrzegawcze (WARNING),</span>
+<span class="sd">      gdyż wpływa na przyszłe rozliczenia członkowskie.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;admin&#39;</span><span class="p">,</span> <span class="s1">&#39;mechanik&#39;</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;index&#39;</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s1">&#39;POST&#39;</span><span class="p">:</span>
+        <span class="n">znak</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;znak_rej&#39;</span><span class="p">)</span>
+        <span class="n">typ</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;typ&#39;</span><span class="p">)</span>
+        <span class="n">cena</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cena_za_h&#39;</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                                    UPDATE pdt_core.szybowiec</span>
+<span class="s2">                                    SET znak_rej  = :z,</span>
+<span class="s2">                                        typ       = :t,</span>
+<span class="s2">                                        cena_za_h = :c</span>
+<span class="s2">                                    WHERE id_szybowiec = :id</span>
+<span class="s2">                                    &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;z&#39;</span><span class="p">:</span> <span class="n">znak</span><span class="p">,</span> <span class="s1">&#39;t&#39;</span><span class="p">:</span> <span class="n">typ</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">:</span> <span class="n">cena</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="nb">id</span><span class="p">})</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+            <span class="n">app_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;GLIDER_MODIFIED&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+                <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;GLIDER_UPDATE&#39;</span><span class="p">,</span>
+                <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+                <span class="s1">&#39;glider_id&#39;</span><span class="p">:</span> <span class="nb">id</span><span class="p">,</span>
+                <span class="s1">&#39;glider_reg&#39;</span><span class="p">:</span> <span class="n">znak</span><span class="p">,</span>
+                <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
+                <span class="s1">&#39;changes&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s1">&#39;Nowa cena: </span><span class="si">{</span><span class="n">cena</span><span class="si">}</span><span class="s1">, Model: </span><span class="si">{</span><span class="n">typ</span><span class="si">}</span><span class="s1">&#39;</span>
+            <span class="p">})</span>
+
+            <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Zmiany w danych szybowca zostały zapisane.&#39;</span><span class="p">,</span> <span class="s1">&#39;success&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;gliders.index&#39;</span><span class="p">))</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+            <span class="n">error_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;GLIDER_UPDATE_FAILED: </span><span class="si">{</span><span class="nb">id</span><span class="si">}</span><span class="s2">, error: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Wystąpił błąd podczas aktualizacji danych.&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
+
+    <span class="n">szybowiec</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM pdt_core.szybowiec WHERE id_szybowiec = :id&quot;</span><span class="p">),</span>
+                                   <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="nb">id</span><span class="p">})</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">szybowiec</span><span class="p">:</span>
+        <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Nie znaleziono szybowca.&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;gliders.index&#39;</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;glider_edit.html&#39;</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="n">szybowiec</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="delete">
+<a class="viewcode-back" href="../../modules.html#routes.gliders.delete">[dokumentacja]</a>
+<span class="nd">@gliders_bp</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/szybowce/usun/&lt;int:id&gt;&#39;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;POST&#39;</span><span class="p">])</span>
+<span class="nd">@login_required</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">delete</span><span class="p">(</span><span class="nb">id</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Wykonuje operację logicznego usunięcia szybowca z floty (Soft Delete).</span>
+
+<span class="sd">    Wycofanie maszyny nie usuwa jej z bazy, aby zachować poprawność historyczną</span>
+<span class="sd">    dzienników lotów i statystyk nalotu pilotów.</span>
+
+<span class="sd">    **Bezpieczeństwo**</span>
+
+<span class="sd">    - Operacja krytyczna: Dostępna wyłącznie dla roli &#39;admin&#39;.</span>
+<span class="sd">    - Mechanizm: Ustawienie kolumny deleted_at na NOW().</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">!=</span> <span class="s1">&#39;admin&#39;</span><span class="p">:</span>
+        <span class="n">security_logger</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;UNAUTHORIZED_GLIDER_DELETE_ATTEMPT&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+            <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;ACCESS_VIOLATION&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+            <span class="s1">&#39;glider_id&#39;</span><span class="p">:</span> <span class="nb">id</span><span class="p">,</span>
+            <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
+        <span class="p">})</span>
+        <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Tylko administrator może usuwać statki powietrzne.&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;gliders.index&#39;</span><span class="p">))</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;UPDATE pdt_core.szybowiec SET deleted_at = NOW() WHERE id_szybowiec = :id&quot;</span><span class="p">),</span> <span class="p">{</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="nb">id</span><span class="p">})</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+        <span class="n">app_logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;GLIDER_SOFT_DELETED&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
+            <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;GLIDER_DELETE&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
+            <span class="s1">&#39;glider_id&#39;</span><span class="p">:</span> <span class="nb">id</span><span class="p">,</span>
+            <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
+        <span class="p">})</span>
+
+        <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Szybowiec został wycofany z eksploatacji.&#39;</span><span class="p">,</span> <span class="s1">&#39;warning&#39;</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">rollback</span><span class="p">()</span>
+        <span class="n">error_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;GLIDER_DELETE_FAILED: </span><span class="si">{</span><span class="nb">id</span><span class="si">}</span><span class="s2">, error: </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s1">&#39;gliders.index&#39;</span><span class="p">))</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Prawa zastrzeżone 2026, Dobrawa Rumszewicz.</p>
+  </div>
+
+  Zbudowano w <a href="https://www.sphinx-doc.org/">Sphinx</a> używając
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    dostarczone przez <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

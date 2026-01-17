@@ -71,7 +71,16 @@ def dashboard():
                           ORDER BY nalot_h DESC
                           """)
 
-    piloci = db.session.execute(sql_piloci).fetchall()
+    piloci_raw = db.session.execute(sql_piloci).fetchall()
+    piloci = []
+    for p in piloci_raw:
+        p_dict = dict(p._mapping)
+
+        if p_dict.get('id_pilot') == current_user.id_pilot:
+            p_dict['pokazywac_dane'] = True
+            p_dict['pokazywac_licencje'] = True
+
+        piloci.append(p_dict)
 
     my_stats = {
         'rank': '-',

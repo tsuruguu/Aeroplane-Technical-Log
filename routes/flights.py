@@ -102,12 +102,12 @@ def get_filtered_query_parts(args, user):
 
     start = args.get('filter_start')
     if start and start.strip():
-        clauses.append("id_start = :fstart")
+        clauses.append("kod_startu = :fstart")
         params['fstart'] = int(start)
 
     ladowanie = args.get('filter_ladowanie')
     if ladowanie and ladowanie.strip():
-        clauses.append("id_ladowanie = :flad")
+        clauses.append("kod_ladowania = :flad")
         params['flad'] = int(ladowanie)
 
     data_lotu = args.get('filter_data')
@@ -224,6 +224,8 @@ def index():
 
     loty = db.session.execute(text(data_sql), params).fetchall()
 
+    args_without_page = request.args.copy()
+    args_without_page.pop('page', None)
     return render_template('flights_list.html',
                            loty=loty,
                            all_pilots=all_pilots,
@@ -232,7 +234,7 @@ def index():
                            page=page,
                            total_pages=total_pages,
                            total_records=total_records,
-                           args=request.args)
+                           args=args_without_page)
 
 
 @flights_bp.route('/loty/export')
@@ -350,8 +352,8 @@ def add_flight():
         id_szybowiec = request.form.get('id_szybowiec')
         dt_start = request.form.get('dt_start')
         dt_ladowanie = request.form.get('dt_ladowanie')
-        id_start = request.form.get('id_start')
-        id_ladowanie = request.form.get('id_ladowanie')
+        id_start = request.form.get('kod_startu')
+        id_ladowanie = request.form.get('kod_ladowania')
         rodzaj_startu = request.form.get('rodzaj_startu')
         uwagi = request.form.get('uwagi')
         usterka = request.form.get('usterka')
@@ -367,8 +369,8 @@ def add_flight():
 
         try:
             res = db.session.execute(text("""
-                                          INSERT INTO pdt_core.lot (id_szybowiec, dt_start, dt_ladowanie, id_start,
-                                                                    id_ladowanie, rodzaj_startu, uwagi, id_nadzorujacy)
+                                          INSERT INTO pdt_core.lot (id_szybowiec, dt_start, dt_ladowanie, kod_startu,
+                                                                    kod_ladowania, rodzaj_startu, uwagi, id_nadzorujacy)
                                           VALUES (:s_id, :d_s, :d_l, :i_s, :i_l, :r_s, :uw, :nadzor)
                                           RETURNING id_lot
                                           """), {
@@ -414,6 +416,7 @@ def add_flight():
     lotniska = db.session.execute(text("SELECT * FROM pdt_core.lotnisko WHERE deleted_at IS NULL")).fetchall()
     piloci = db.session.execute(
         text("SELECT * FROM pdt_core.pilot WHERE deleted_at IS NULL ORDER BY nazwisko")).fetchall()
+
     return render_template('flights_add.html', szybowce=szybowce, lotniska=lotniska, piloci=piloci)
 
 
@@ -463,8 +466,8 @@ def edit_flight(id_lot):
         id_szybowiec = request.form.get('id_szybowiec')
         dt_start = request.form.get('dt_start')
         dt_ladowanie = request.form.get('dt_ladowanie')
-        id_start = request.form.get('id_start')
-        id_ladowanie = request.form.get('id_ladowanie')
+        id_start = request.form.get('kod_startu')
+        id_ladowanie = request.form.get('kod_ladowania')
         rodzaj_startu = request.form.get('rodzaj_startu')
         uwagi = request.form.get('uwagi')
         usterka_opis = request.form.get('usterka')
@@ -492,8 +495,8 @@ def edit_flight(id_lot):
                                     SET id_szybowiec=:s_id,
                                         dt_start=:d_s,
                                         dt_ladowanie=:d_l,
-                                        id_start=:i_s,
-                                        id_ladowanie=:i_l,
+                                        kod_startu=:i_s,
+                                        kod_ladowania=:i_l,
                                         rodzaj_startu=:r_s,
                                         uwagi=:uw,
                                         id_nadzorujacy=:nadzor

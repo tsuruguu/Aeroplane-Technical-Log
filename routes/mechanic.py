@@ -497,7 +497,7 @@ def details(id_usterka):
                     security_logger.error("MALICIOUS_UPLOAD_ATTEMPT", extra={
                         'event': 'UPLOAD_FAILURE_SECURITY',
                         'user': current_user.login,
-                        'filename': file.filename if file else "None",
+                        'uploaded_file_name': file.filename if file else "None",
                         'src_ip': request.remote_addr
                     })
                     flash('Nieprawidłowy plik.', 'danger')

@@ -65,6 +65,13 @@
 <li class="toctree-l4"><a class="reference internal" href="#routes.flights.index"><code class="docutils literal notranslate"><span class="pre">index()</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#modul-dliders-flota-szybowcow">Moduł: Dliders (Flota Szybowców)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#routes.gliders.add"><code class="docutils literal notranslate"><span class="pre">add()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#routes.gliders.delete"><code class="docutils literal notranslate"><span class="pre">delete()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#routes.gliders.edit"><code class="docutils literal notranslate"><span class="pre">edit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#routes.gliders.index"><code class="docutils literal notranslate"><span class="pre">index()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#module-routes.mechanic">Moduł: Mechanic (Panel Techniczny)</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#routes.mechanic.add_inspection"><code class="docutils literal notranslate"><span class="pre">add_inspection()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#routes.mechanic.allowed_file"><code class="docutils literal notranslate"><span class="pre">allowed_file()</span></code></a></li>
@@ -515,6 +522,86 @@ Redukuje to obciążenie serwera i czas ładowania strony.</p>
 <dd class="field-even"><p>str</p>
 </dd>
 </dl>
+</dd></dl>
+
+</section>
+<section id="modul-dliders-flota-szybowcow">
+<h3>Moduł: Dliders (Flota Szybowców)<a class="headerlink" href="#modul-dliders-flota-szybowcow" title="Link to this heading"></a></h3>
+<p id="module-routes.gliders">Moduł zarządzania flotą szybowców (Gliders) z pełnym audytem operacyjnym.</p>
+<p>Odpowiada za ewidencję statków powietrznych: wyświetlanie listy floty,
+rejestrację nowych jednostek, edycję parametrów kosztowych oraz wycofywanie z eksploatacji (soft-delete).</p>
+<p><strong>System Logowania Audytowego (Aviation Compliance)</strong></p>
+<p>Każda zmiana we flocie (dodanie, edycja, usunięcie) jest logowana w formacie JSON
+z metadanymi umożliwiającymi śledzenie sprawcy (traceability) oraz integralność dowodową.</p>
+<p>Przykład logu dodania szybowca (JSON)::
+{</p>
+<blockquote>
+<div><p>„timestamp”: „2026-01-17T20:15:00.123Z”,
+„level”: „INFO”,
+„event”: „GLIDER_CREATED”,
+„user”: „admin_rumsze”,
+„glider_reg”: „SP-1001”,
+„src_ip”: „10.0.0.8”,
+„signature”: „a7b8c9…”</p>
+</div></blockquote>
+<p>}</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="routes.gliders.add">
+<span class="sig-prename descclassname"><span class="pre">routes.gliders.</span></span><span class="sig-name descname"><span class="pre">add</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/gliders.html#add"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.gliders.add" title="Link to this definition"></a></dt>
+<dd><p>Obsługuje proces rejestracji nowego statku powietrznego we flocie.</p>
+<p><strong>Bezpieczeństwo</strong></p>
+<ul class="simple">
+<li><p>Weryfikacja unikalności znaku rejestracyjnego (klucz UNIQUE w bazie).</p></li>
+<li><p>Logowanie transakcyjne utworzenia zasobu.</p></li>
+</ul>
+<p><strong>Przepływ Logiki</strong></p>
+<ol class="arabic simple">
+<li><p>Walidacja roli użytkownika.</p></li>
+<li><p>Przetworzenie danych formularza (POST).</p></li>
+<li><p>Zapis do tabeli pdt_core.szybowiec.</p></li>
+</ol>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="routes.gliders.delete">
+<span class="sig-prename descclassname"><span class="pre">routes.gliders.</span></span><span class="sig-name descname"><span class="pre">delete</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/gliders.html#delete"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.gliders.delete" title="Link to this definition"></a></dt>
+<dd><p>Wykonuje operację logicznego usunięcia szybowca z floty (Soft Delete).</p>
+<p>Wycofanie maszyny nie usuwa jej z bazy, aby zachować poprawność historyczną
+dzienników lotów i statystyk nalotu pilotów.</p>
+<p><strong>Bezpieczeństwo</strong></p>
+<ul class="simple">
+<li><p>Operacja krytyczna: Dostępna wyłącznie dla roli «admin».</p></li>
+<li><p>Mechanizm: Ustawienie kolumny deleted_at na NOW().</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="routes.gliders.edit">
+<span class="sig-prename descclassname"><span class="pre">routes.gliders.</span></span><span class="sig-name descname"><span class="pre">edit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/gliders.html#edit"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.gliders.edit" title="Link to this definition"></a></dt>
+<dd><p>Realizuje procedurę aktualizacji parametrów techniczno-finansowych szybowca.</p>
+<p>Umożliwia modyfikację stawki godzinowej oraz modelu bez niszczenia
+historycznych powiązań z wykonanymi lotami.</p>
+<p><strong>Audyt</strong></p>
+<ul class="simple">
+<li><p>Każda zmiana ceny za godzinę jest rejestrowana jako zdarzenie ostrzegawcze (WARNING),
+gdyż wpływa na przyszłe rozliczenia członkowskie.</p></li>
+</ul>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="routes.gliders.index">
+<span class="sig-prename descclassname"><span class="pre">routes.gliders.</span></span><span class="sig-name descname"><span class="pre">index</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/gliders.html#index"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.gliders.index" title="Link to this definition"></a></dt>
+<dd><p>Kontroler widoku floty szybowców (Widok Techniczno-Administracyjny).</p>
+<p>Prezentuje listę aktywnych jednostek uprawnionym użytkownikom (admin, mechanik).</p>
+<p><strong>Logika uprawnień</strong></p>
+<ul class="simple">
+<li><p>Dostęp ograniczony do ról technicznych i administracyjnych.</p></li>
+<li><p>Próba dostępu przez zwykłego pilota kończy się przekierowaniem i logiem naruszenia.</p></li>
+</ul>
+<p><strong>Optymalizacja</strong></p>
+<ul class="simple">
+<li><p>Filtruje rekordy na poziomie bazy danych (deleted_at IS NULL).</p></li>
+</ul>
 </dd></dl>
 
 </section>

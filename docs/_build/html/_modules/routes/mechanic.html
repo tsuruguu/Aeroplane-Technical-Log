@@ -40,16 +40,13 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Spis treści:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Logika Aplikacji (Python)</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../modules.html">Dokumentacja Techniczna PDT</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architektura Danych (SQL)</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="../../database.html">Specyfikacja Techniczna Bazy Danych PDT</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#schemat-pdt-core-rdzen-operacyjny">Schemat pdt_core (Rdzeń Operacyjny)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#logika-biznesowa-i-automatyzacja-pdt-core">Logika Biznesowa i Automatyzacja (pdt_core)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#widoki-danych-pdt-core">Widoki Danych (pdt_core)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#schemat-pdt-auth-uwierzytelnianie-i-uprawnienia">Schemat pdt_auth (Uwierzytelnianie i Uprawnienia)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#schemat-pdt-rpt-warstwa-raportowa-i-finansowa">Schemat pdt_rpt (Warstwa Raportowa i Finansowa)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#analiza-normalizacji-i-zaleznosci-funkcyjnych">Analiza Normalizacji i Zależności Funkcyjnych</a></li>
 </ul>
 
         </div>
@@ -84,10 +81,11 @@
 <span class="sd">dodawanie przeglądów okresowych oraz dokumentację zdjęciową napraw.</span>
 
 <span class="sd">**System Logowania Audytowego (Maintenance &amp; Safety Audit)**</span>
+
 <span class="sd">Logi w tym module dokumentują krytyczne zmiany w statusie zdatności floty.</span>
 <span class="sd">Szczególny nacisk położono na audyt przesyłania plików oraz resetowanie liczników przeglądów.</span>
 
-<span class="sd">Przykład logu obsługi technicznej (JSON):</span>
+<span class="sd">Przykład logu obsługi technicznej (JSON)::</span>
 <span class="sd">{</span>
 <span class="sd">    &quot;timestamp&quot;: &quot;2026-01-11T20:15:30.987Z&quot;,</span>
 <span class="sd">    &quot;level&quot;: &quot;WARNING&quot;,</span>
@@ -129,10 +127,12 @@
 <span class="sd">        Jest to kluczowa linia obrony przed atakami typu **RCE (Remote Code Execution)**.</span>
 
 <span class="sd">        **Zagrożenie:**</span>
+
 <span class="sd">        Bez tej weryfikacji atakujący mógłby przesłać skrypt wykonywalny (np. ``malware.php``, ``script.py``, ``cmd.exe``)</span>
 <span class="sd">        zamiast zdjęcia. Jeśli serwer pozwoliłby na jego wykonanie, haker przejąłby kontrolę nad systemem.</span>
 
 <span class="sd">        **Mechanizm:**</span>
+
 <span class="sd">        1. Sprawdza obecność kropki w nazwie.</span>
 <span class="sd">        2. Pobiera rozszerzenie (ostatni element po kropce).</span>
 <span class="sd">        3. Konwertuje na małe litery i sprawdza obecność na białej liście (whitelist).</span>
@@ -159,6 +159,7 @@
 <span class="sd">        wgląd w stan zdatności floty.</span>
 
 <span class="sd">        **Algorytm Obliczania Resursów (TTSN / TSO):**</span>
+
 <span class="sd">        Dla każdego szybowca system wykonuje analizę w czasie rzeczywistym:</span>
 <span class="sd">        1. Pobiera stan nalotu całkowitego z widoku zmaterializowanego/widoku raportowego.</span>
 <span class="sd">        2. Identyfikuje datę ostatniego przeglądu okresowego typu &#39;500h&#39; lub &#39;Annual&#39;.</span>
@@ -256,6 +257,7 @@
 <span class="sd">        Agreguje pełną historię eksploatacyjną konkretnego statku powietrznego.</span>
 
 <span class="sd">        **Agregacja Danych:**</span>
+
 <span class="sd">        Widok łączy dane z trzech niezależnych źródeł w jedną spójną kartę:</span>
 <span class="sd">        1.  `pdt_core.v_szybowiec_nalot`: Pobiera sumaryczny czas lotu (Total Time Since New).</span>
 <span class="sd">        2.  `pdt_core.przeglad`: Historię obsługi technicznej (kto i kiedy wykonał przegląd).</span>
@@ -320,6 +322,7 @@
 <span class="sd">        lub dla zarządu aeroklubu w celu planowania budżetu na remonty.</span>
 
 <span class="sd">        **Zawartość Raportu:**</span>
+
 <span class="sd">        - Znaki rejestracyjne i typ.</span>
 <span class="sd">        - Całkowity nalot (TTSN).</span>
 <span class="sd">        - Data i rodzaj ostatniego przeglądu (np. ARC, 50h, 500h).</span>
@@ -477,11 +480,13 @@
 <span class="sd">        Zarządza pełnym procesem obsługi zgłoszenia: od otwarcia, przez diagnostykę, aż do zamknięcia.</span>
 
 <span class="sd">        **Śledzenie Zmian (Audit Log):**</span>
+
 <span class="sd">        Każda interwencja mechanika (dodanie opisu, wymiana części) jest rejestrowana w tabeli</span>
 <span class="sd">        `pdt_core.naprawa` z sygnaturą czasową i ID użytkownika. Pozwala to odtworzyć</span>
 <span class="sd">        historię naprawy w przypadku późniejszych problemów (np. w dochodzeniu powypadkowym).</span>
 
 <span class="sd">        **Dokumentacja Cyfrowa:**</span>
+
 <span class="sd">        Obsługuje bezpieczny upload zdjęć dowodowych. Pliki otrzymują losowe nazwy UUID,</span>
 <span class="sd">        aby zapobiec nadpisywaniu plików oraz atakom typu Path Traversal lub wykonywaniu złośliwych skryptów.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -596,7 +601,7 @@
                     <span class="n">security_logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s2">&quot;MALICIOUS_UPLOAD_ATTEMPT&quot;</span><span class="p">,</span> <span class="n">extra</span><span class="o">=</span><span class="p">{</span>
                         <span class="s1">&#39;event&#39;</span><span class="p">:</span> <span class="s1">&#39;UPLOAD_FAILURE_SECURITY&#39;</span><span class="p">,</span>
                         <span class="s1">&#39;user&#39;</span><span class="p">:</span> <span class="n">current_user</span><span class="o">.</span><span class="n">login</span><span class="p">,</span>
-                        <span class="s1">&#39;filename&#39;</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">filename</span> <span class="k">if</span> <span class="n">file</span> <span class="k">else</span> <span class="s2">&quot;None&quot;</span><span class="p">,</span>
+                        <span class="s1">&#39;uploaded_file_name&#39;</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">filename</span> <span class="k">if</span> <span class="n">file</span> <span class="k">else</span> <span class="s2">&quot;None&quot;</span><span class="p">,</span>
                         <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span>
                     <span class="p">})</span>
                     <span class="n">flash</span><span class="p">(</span><span class="s1">&#39;Nieprawidłowy plik.&#39;</span><span class="p">,</span> <span class="s1">&#39;danger&#39;</span><span class="p">)</span>
@@ -618,11 +623,13 @@
 <span class="sd">        Jest to krytyczna operacja systemowa, która wpływa na obliczanie resursów.</span>
 
 <span class="sd">        **Logika Biznesowa (Reset Liczników):**</span>
+
 <span class="sd">        Wprowadzenie nowego przeglądu do bazy danych (`INSERT INTO pdt_core.przeglad`)</span>
 <span class="sd">        powoduje, że algorytm w `mechanic.index` zacznie liczyć godziny &quot;od przeglądu&quot;</span>
 <span class="sd">        od nowej daty. Innymi słowy – funkcja ta &quot;zeruje licznik&quot; do następnego przeglądu okresowego.</span>
 
 <span class="sd">        **Wymagania:**</span>
+
 <span class="sd">        Dostępna tylko dla ról technicznych (`admin`, `mechanik`), ponieważ błędny wpis</span>
 <span class="sd">        może doprowadzić do przekroczenia resursu i utraty ubezpieczenia statku.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -640,7 +647,7 @@
         <span class="s1">&#39;aircraft_id&#39;</span><span class="p">:</span> <span class="n">id_szybowiec</span><span class="p">,</span>
         <span class="s1">&#39;inspection_type&#39;</span><span class="p">:</span> <span class="n">typ</span><span class="p">,</span>
         <span class="s1">&#39;src_ip&#39;</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">remote_addr</span><span class="p">,</span>
-        <span class="s1">&#39;message&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Zatwierdzono przegląd typu </span><span class="si">{</span><span class="n">typ</span><span class="si">}</span><span class="s2"> - reset resursów&quot;</span>
+        <span class="s1">&#39;details&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Zatwierdzono przegląd typu </span><span class="si">{</span><span class="n">typ</span><span class="si">}</span><span class="s2"> - reset resursów&quot;</span>
     <span class="p">})</span>
 
     <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>

@@ -43,7 +43,7 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Spis treści:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Logika Aplikacji (Python)</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Dokumentacja Techniczna PDT</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#czesc-1-endpointy-i-trasy-routes">Część 1: Endpointy i Trasy (Routes)</a><ul>
@@ -100,7 +100,10 @@
 <li class="toctree-l4"><a class="reference internal" href="#models.Uzytkownik"><code class="docutils literal notranslate"><span class="pre">Uzytkownik</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#modul-app-konfiguracja-aplikacji">Moduł: App (Konfiguracja Aplikacji)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-app">Moduł: App (Konfiguracja Aplikacji)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#app.create_app"><code class="docutils literal notranslate"><span class="pre">create_app()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#module-extensions">Moduł: Extensions (Rozszerzenia)</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#extensions.csrf"><code class="docutils literal notranslate"><span class="pre">csrf</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#extensions.db"><code class="docutils literal notranslate"><span class="pre">db</span></code></a></li>
@@ -112,13 +115,10 @@
 </li>
 </ul>
 </li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architektura Danych (SQL)</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="database.html">Specyfikacja Techniczna Bazy Danych PDT</a></li>
-<li class="toctree-l1"><a class="reference internal" href="database.html#schemat-pdt-core-rdzen-operacyjny">Schemat pdt_core (Rdzeń Operacyjny)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="database.html#logika-biznesowa-i-automatyzacja-pdt-core">Logika Biznesowa i Automatyzacja (pdt_core)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="database.html#widoki-danych-pdt-core">Widoki Danych (pdt_core)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="database.html#schemat-pdt-auth-uwierzytelnianie-i-uprawnienia">Schemat pdt_auth (Uwierzytelnianie i Uprawnienia)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="database.html#schemat-pdt-rpt-warstwa-raportowa-i-finansowa">Schemat pdt_rpt (Warstwa Raportowa i Finansowa)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="database.html#analiza-normalizacji-i-zaleznosci-funkcyjnych">Analiza Normalizacji i Zależności Funkcyjnych</a></li>
 </ul>
 
         </div>
@@ -156,10 +156,10 @@
 <p>Moduł uwierzytelniania (Authentication) z systemem Audit Trail.</p>
 <p>Obsługuje logowanie, wylogowywanie, rejestrację nowych użytkowników
 oraz zarządzanie profilem.</p>
-<p><strong>System Logowania i Audytu (Cybersecurity Compliance)</strong>
-Wszystkie zdarzenia w tym module są logowane do kanału <cite>security</cite> w formacie JSON
+<p><strong>System Logowania i Audytu (Cybersecurity Compliance)</strong></p>
+<p>Wszystkie zdarzenia w tym module są logowane do kanału <cite>security</cite> w formacie JSON
 z cyfrowym podpisem HMAC-SHA256, co zapewnia integralność logów (nienaruszalność).</p>
-<p>Przykład logu bezpieczeństwa (JSON):
+<p>Przykład logu bezpieczeństwa (JSON)::
 {</p>
 <blockquote>
 <div><p>„timestamp”: „2026-01-11T18:20:01.123Z”,
@@ -177,8 +177,8 @@ z cyfrowym podpisem HMAC-SHA256, co zapewnia integralność logów (nienaruszaln
 <dd><p>Kryptograficznie bezpieczny generator haseł (o wysokiej entropii).</p>
 <p>Używany przez Administratora przy tworzeniu nowych kont, aby uniknąć
 nadawania słabych haseł domyślnych (np. „admin123”).</p>
-<p><strong>Implementacja:</strong>
-Korzysta z modułu <cite>secrets</cite> (a nie <cite>random</cite>), co gwarantuje wysoką entropię
+<p><strong>Implementacja:</strong></p>
+<p>Korzysta z modułu <cite>secrets</cite> (a nie <cite>random</cite>), co gwarantuje wysoką entropię
 i nieprzewidywalność wygenerowanych znaków. Algorytm w pętli <cite>while</cite> upewnia się,
 że wylosowany ciąg spełnia rygorystyczne zasady polityki haseł (duże litery, znaki specjalne).</p>
 <dl class="field-list simple">
@@ -195,23 +195,23 @@ i nieprzewidywalność wygenerowanych znaków. Algorytm w pętli <cite>while</ci
 <dt class="sig sig-object py" id="routes.auth.login">
 <span class="sig-prename descclassname"><span class="pre">routes.auth.</span></span><span class="sig-name descname"><span class="pre">login</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/auth.html#login"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.auth.login" title="Link to this definition"></a></dt>
 <dd><p>Proces uwierzytelniania z wielowarstwowym mechanizmem obronnym.</p>
-<p><strong>Warstwy bezpieczeństwa</strong>
-1. Rate Limiting: Ograniczenie prób logowania na poziomie IP (Flask-Limiter)</p>
-<blockquote>
-<div><p>w celu mitigacji ataków Brute-force i Dictionary.</p>
-</div></blockquote>
-<ol class="arabic simple" start="2">
+<p><strong>Warstwy bezpieczeństwa</strong></p>
+<ol class="arabic simple">
+<li><p>Rate Limiting: Ograniczenie prób logowania na poziomie IP (Flask-Limiter)
+w celu mitigacji ataków Brute-force i Dictionary.</p></li>
 <li><p>Kryptografia: Weryfikacja hasła funkcją <cite>check_password_hash</cite> z solą
 (odporność na Rainbow Tables).</p></li>
 <li><p>Stan konta: Weryfikacja logiczna flagi <cite>deleted_at</cite> w profilu pilota
 (tzw. Administrative Lockout).</p></li>
 <li><p>Session Management: Inicjalizacja bezpiecznej sesji (HttpOnly, Secure flag).</p></li>
 </ol>
-<p><strong>Przepływ Logiki</strong>
-- Pobranie użytkownika na podstawie unikalnego loginu.
-- Weryfikacja kryptograficzna hasła.
-- Sprawdzenie flagi aktywności konta (blokada administracyjna).
-- Inicjalizacja sesji użytkownika (Flask-Login).</p>
+<p><strong>Przepływ Logiki</strong></p>
+<ul class="simple">
+<li><p>Pobranie użytkownika na podstawie unikalnego loginu.</p></li>
+<li><p>Weryfikacja kryptograficzna hasła.</p></li>
+<li><p>Sprawdzenie flagi aktywności konta (blokada administracyjna).</p></li>
+<li><p>Inicjalizacja sesji użytkownika (Flask-Login).</p></li>
+</ul>
 <dl class="field-list simple">
 <dt class="field-odd">Zwraca<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Przekierowanie do strony głównej (sukces - 200) lub ponowne wyświetlenie formularza (błąd - 302).</p>
@@ -246,23 +246,20 @@ gdyż po wylogowaniu stary token sesyjny staje się nieważny.</p>
 <dd><p>Centrum zarządzania tożsamością użytkownika (Self-Service).</p>
 <p>Umożliwia zalogowanemu użytkownikowi samodzielną administrację swoim kontem
 bez angażowania administratora.</p>
-<p><strong>Obsługiwane Procesy:</strong>
-1.  <strong>Zmiana Hasła:</strong></p>
-<blockquote>
-<div><ul class="simple">
+<p><strong>Obsługiwane Procesy:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Zmiana Hasła:</strong></p>
+<ul class="simple">
 <li><p>Wymaga podania starego hasła (re-authentication), co chroni przed zmianą
 hasła przez osobę, która znalazła odblokowany komputer (Session Riding).</p></li>
 <li><p>Weryfikuje siłę nowego hasła funkcją <cite>validate_password</cite>.</p></li>
 <li><p>Zapisuje nowy hash (scrypt) w bazie.</p></li>
 </ul>
-</div></blockquote>
-<ol class="arabic" start="2">
-<li><p><strong>Ustawienia Prywatności (RODO / GDPR):</strong>
--   Pozwala pilotowi zdecydować, czy jego nazwisko i licencja są widoczne</p>
-<blockquote>
-<div><p>na publicznych listach rankingowych i w raportach.</p>
-</div></blockquote>
+</li>
+<li><p><strong>Ustawienia Prywatności (RODO / GDPR):</strong></p>
 <ul class="simple">
+<li><p>Pozwala pilotowi zdecydować, czy jego nazwisko i licencja są widoczne
+na publicznych listach rankingowych i w raportach.</p></li>
 <li><p>Zmiana tych flag w bazie (<cite>pdt_core.pilot</cite>) natychmiast wpływa na
 dane zwracane przez moduł raportowy (anonimizacja).</p></li>
 </ul>
@@ -284,14 +281,16 @@ dane zwracane przez moduł raportowy (anonimizacja).</p></li>
 <dd><p>Rejestracja nowego użytkownika w systemie (Procedura Administracyjna).</p>
 <p>Funkcja dostępna tylko dla roli «admin». Realizuje <strong>transakcyjne</strong> utworzenie
 tożsamości w systemie, zapewniając spójność danych między różnymi schematami bazy.</p>
-<p><strong>Transakcyjność (Atomowość):</strong>
-Operacja jest wykonywana w ramach jednej transakcji bazy danych (<cite>db.session</cite>):
+<p><strong>Transakcyjność (Atomowość):</strong></p>
+<p>Operacja jest wykonywana w ramach jednej transakcji bazy danych (<cite>db.session</cite>):
 1.  <cite>INSERT</cite> do <cite>pdt_core.pilot</cite> – tworzy profil osobowy.
 2.  <cite>INSERT</cite> do <cite>pdt_auth.uzytkownik</cite> – tworzy dane logowania, linkując je kluczem obcym do pilota.
 Jeśli którykolwiek krok zawiedzie, następuje <cite>ROLLBACK</cite>, zapobiegając powstaniu „sierot” w bazie.</p>
-<p><strong>Bezpieczeństwo:</strong>
-- Generowanie silnego hasła tymczasowego (wymuszona złożoność: duże litery, znaki specjalne).
-- Haszowanie hasła przed zapisem do bazy.</p>
+<p><strong>Bezpieczeństwo:</strong></p>
+<ul class="simple">
+<li><p>Generowanie silnego hasła tymczasowego (wymuszona złożoność: duże litery, znaki specjalne).</p></li>
+<li><p>Haszowanie hasła przed zapisem do bazy.</p></li>
+</ul>
 <dl class="field-list simple">
 <dt class="field-odd">Zwraca<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Widok rejestracji z komunikatem o wygenerowanym haśle.</p>
@@ -309,10 +308,12 @@ Jeśli którykolwiek krok zawiedzie, następuje <cite>ROLLBACK</cite>, zapobiega
 <p>Wymusza na użytkownikach stosowanie silnych haseł podczas ich zmiany.
 Chroni przed atakami słownikowymi i tęczowymi (Rainbow Tables),
 wymuszając odpowiednią długość i złożoność znaków (zwiększając entropię hasła).</p>
-<p><strong>Reguły:</strong>
-- Minimum 12 znaków.
-- Przynajmniej 2 duże litery [A-Z].
-- Przynajmniej 2 znaki specjalne (np. !&#64;#).</p>
+<p><strong>Reguły:</strong></p>
+<ul class="simple">
+<li><p>Minimum 12 znaków.</p></li>
+<li><p>Przynajmniej 2 duże litery [A-Z].</p></li>
+<li><p>Przynajmniej 2 znaki specjalne (np. !&#64;#).</p></li>
+</ul>
 <dl class="field-list simple">
 <dt class="field-odd">Parametry<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>password</strong> (<em>str</em>) – Hasło w postaci jawnej (plain text) do sprawdzenia.</p>
@@ -330,13 +331,11 @@ wymuszając odpowiednią długość i złożoność znaków (zwiększając entro
 <section id="module-routes.flights">
 <span id="modul-flights-dziennik-lotow"></span><h3>Moduł: Flights (Dziennik Lotów)<a class="headerlink" href="#module-routes.flights" title="Link to this heading"></a></h3>
 <p>Moduł obsługi lotów (Flights) z pełnym audytem operacyjnym.</p>
-<p>Zarządza głównym dziennikiem lotów: wyświetlaniem listy, filtrowaniem,
-dodawaniem, edycją i usuwaniem (soft-delete) wpisów o lotach.
-Obsługuje również eksport danych do CSV.</p>
-<p><strong>System Logowania Audytowego (Aviation Compliance)</strong>
-Każda operacja na dzienniku lotów jest logowana w formacie strukturyzowanym JSON.
+<p>Zarządza głównym dziennikiem lotów: wyświetlaniem listy, filtrowaniem, dodawaniem, edycją i usuwaniem (soft-delete) wpisów o lotach. Obsługuje również eksport danych do CSV.</p>
+<p><strong>System Logowania Audytowego (Aviation Compliance)</strong></p>
+<p>Każda operacja na dzienniku lotów jest logowana w formacie strukturyzowanym JSON.
 Zmiany w nalotach i usterkach są traktowane jako zdarzenia krytyczne dla bezpieczeństwa operacji.</p>
-<p>Przykład logu dodania lotu (JSON):
+<p>Przykład logu dodania lotu (JSON)::
 {</p>
 <blockquote>
 <div><p>„timestamp”: „2026-01-11T19:45:00.123Z”,
@@ -355,25 +354,27 @@ Zmiany w nalotach i usterkach są traktowane jako zdarzenia krytyczne dla bezpie
 <dd><p>Obsługuje transakcję zapisu nowej operacji lotniczej.</p>
 <p>Funkcja ta odpowiada za wprowadzenie kompletnego zapisu o locie, dbając o spójność
 danych operacyjnych i finansowych.</p>
-<dl class="simple">
-<dt><strong>Walidacja</strong></dt><dd><ul class="simple">
+<p><strong>Walidacja</strong></p>
+<blockquote>
+<div><ul class="simple">
 <li><p>Implementuje regułę bezpieczeństwa: Jeśli pilotem dowódcą (PIC) jest UCZEŃ, system
 wymaga, aby w kabinie był instruktor LUB aby wskazano instruktora nadzorującego z ziemi.
 Zapobiega to zapisaniu nielegalnych operacji lotniczych.</p></li>
 <li><p>Przechwytuje błędy integralności i wyjątki rzucane przez triggery bazy danych
 (np. nakładanie się czasów lotu szybowca).</p></li>
 </ul>
-</dd>
-<dt><strong>Przebieg transakcji (ACID)</strong></dt><dd><ol class="arabic simple">
+</div></blockquote>
+<p><strong>Przebieg transakcji (ACID)</strong></p>
+<blockquote>
+<div><ol class="arabic simple">
 <li><p>INSERT do <cite>pdt_core.lot</cite> -&gt; pobranie generowanego ID.</p></li>
 <li><p>Opcjonalny INSERT do <cite>pdt_core.usterka</cite> (relacja 1:1).</p></li>
 <li><p>Iteracyjny INSERT do <cite>pdt_core.lot_pilot</cite> dla wszystkich członków załogi.</p></li>
 <li><p>Commit transakcji lub Rollback w przypadku dowolnego błędu IO/Logic.</p></li>
 </ol>
-</dd>
-</dl>
-<p><strong>Obsługa Błędów Domenowych:</strong>
-Blok <cite>try-except</cite> jest skonfigurowany tak, aby przechwytywać błędy logiczne rzucane
+</div></blockquote>
+<p><strong>Obsługa Błędów Domenowych:</strong></p>
+<p>Blok <cite>try-except</cite> jest skonfigurowany tak, aby przechwytywać błędy logiczne rzucane
 przez triggery w bazie danych (np. <cite>RAISE EXCEPTION</cite> gdy czas lądowania jest przed startem)
 i wyświetlać je użytkownikowi w zrozumiałym języku.</p>
 </dd></dl>
@@ -384,15 +385,13 @@ i wyświetlać je użytkownikowi w zrozumiałym języku.</p>
 <dd><p>Wykonuje operację logicznego usunięcia rekordu (Soft Delete).</p>
 <p>W systemach księgowych i operacyjnych usuwanie fizyczne (<cite>DELETE FROM</cite>) jest niedopuszczalne,
 ponieważ niszczy historię i audytowalność.</p>
-<p><strong>Mechanizm:</strong>
-Zamiast usuwać rekord, funkcja ustawia kolumnę <cite>deleted_at</cite> na bieżący czas (<cite>NOW()</cite>).</p>
-<p><strong>Konsekwencje w systemie:</strong>
-1.  <strong>Widoki Raportowe:</strong> Wszystkie widoki finansowe (<cite>v_rozliczenie_finansowe</cite>) i statystyczne</p>
-<blockquote>
-<div><p>mają warunek <cite>WHERE deleted_at IS NULL</cite>. Dzięki temu „usunięty” lot automatycznie przestaje
-być wliczany do salda pilota i nalotu szybowca.</p>
-</div></blockquote>
-<ol class="arabic simple" start="2">
+<p><strong>Mechanizm:</strong></p>
+<p>Zamiast usuwać rekord, funkcja ustawia kolumnę <cite>deleted_at</cite> na bieżący czas (<cite>NOW()</cite>).</p>
+<p><strong>Konsekwencje w systemie:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Widoki Raportowe:</strong> Wszystkie widoki finansowe (<cite>v_rozliczenie_finansowe</cite>) i statystyczne
+mają warunek <cite>WHERE deleted_at IS NULL</cite>. Dzięki temu „usunięty” lot automatycznie przestaje
+być wliczany do salda pilota i nalotu szybowca.</p></li>
 <li><p><strong>Audyt:</strong> Rekord fizycznie pozostaje w bazie, co pozwala administratorowi sprawdzić historię
 edycji/usuwania w przypadku sporów.</p></li>
 </ol>
@@ -404,17 +403,17 @@ edycji/usuwania w przypadku sporów.</p></li>
 <dd><p>Realizuje procedurę korekty historycznej zapisu operacji lotniczej.</p>
 <p>Umożliwia modyfikację istniejącego wpisu z zachowaniem jego ID, co jest kluczowe
 dla spójności logów systemowych i powiązań z usterkami.</p>
-<p><strong>Bezpieczeństwo (Authorization Check):</strong>
-Przed wykonaniem jakiejkolwiek akcji system weryfikuje własność rekordu.
+<p><strong>Bezpieczeństwo (Authorization Check):</strong></p>
+<p>Przed wykonaniem jakiejkolwiek akcji system weryfikuje własność rekordu.
 Edytować lot może tylko Administrator lub pilot biorący w nim udział (PIC/SIC).
 Próba edycji cudzego lotu przez zwykłego użytkownika kończy się blokadą.</p>
-<p><strong>Strategia Aktualizacji Danych (Delete-Insert Pattern):</strong>
-Aktualizacja składu załogi (relacja wiele-do-wielu w tabeli <cite>lot_pilot</cite>) jest realizowana
+<p><strong>Strategia Aktualizacji Danych (Delete-Insert Pattern):</strong></p>
+<p>Aktualizacja składu załogi (relacja wiele-do-wielu w tabeli <cite>lot_pilot</cite>) jest realizowana
 poprzez usunięcie wszystkich starych powiązań dla tego lotu i wstawienie nowych.
 Jest to podejście bardziej robustne (odporne na błędy) niż próbkowanie różnic (diffing),
 eliminując ryzyko pozostawienia „duchów” (nieaktualnych pilotów) w załodze.</p>
-<p><strong>Obsługa Usterek:</strong>
-Funkcja inteligentnie zarządza powiązaną usterką:
+<p><strong>Obsługa Usterek:</strong></p>
+<p>Funkcja inteligentnie zarządza powiązaną usterką:
 - Jeśli usterka już istniała -&gt; Aktualizuje jej opis.
 - Jeśli nie istniała, a użytkownik ją dodał -&gt; Tworzy nowy rekord w <cite>pdt_core.usterka</cite>.</p>
 </dd></dl>
@@ -424,13 +423,15 @@ Funkcja inteligentnie zarządza powiązaną usterką:
 <span class="sig-prename descclassname"><span class="pre">routes.flights.</span></span><span class="sig-name descname"><span class="pre">export_csv</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/flights.html#export_csv"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.flights.export_csv" title="Link to this definition"></a></dt>
 <dd><p>Generator raportów CSV z mechanizmem anonimizacji (Data Masking).</p>
 <p>Umożliwia pobranie aktualnie przefiltrowanego widoku tabeli do formatu Excel-CSV.</p>
-<p><strong>Logika Bezpieczeństwa (Anonimizacja):</strong>
-System stosuje dynamiczne maskowanie danych wrażliwych w czasie rzeczywistym.
+<p><strong>Logika Bezpieczeństwa (Anonimizacja):</strong></p>
+<p>System stosuje dynamiczne maskowanie danych wrażliwych w czasie rzeczywistym.
 Nawet jeśli użytkownik pobierze plik, nie zobaczy w nim danych, do których nie ma uprawnień.</p>
-<p>Reguły widoczności (Row-Level Security w warstwie aplikacji):
-1.  Jeśli jesteś <strong>Adminem/Mechanikiem</strong> -&gt; Widzisz wszystko.
-2.  Jeśli jesteś <strong>członkiem załogi</strong> danego lotu -&gt; Widzisz pełne dane tego lotu (koszty, nazwiska).
-3.  W przeciwnym razie -&gt; Nazwiska innych pilotów i kwoty finansowe są zastępowane ciągiem <cite>***</cite>.</p>
+<p>Reguły widoczności (Row-Level Security w warstwie aplikacji):</p>
+<ol class="arabic simple">
+<li><p>Jeśli jesteś <strong>Adminem/Mechanikiem</strong> -&gt; Widzisz wszystko.</p></li>
+<li><p>Jeśli jesteś <strong>członkiem załogi</strong> danego lotu -&gt; Widzisz pełne dane tego lotu (koszty, nazwiska).</p></li>
+<li><p>W przeciwnym razie -&gt; Nazwiska innych pilotów i kwoty finansowe są zastępowane ciągiem <cite>***</cite>.</p></li>
+</ol>
 <dl class="field-list simple">
 <dt class="field-odd">Zwraca<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Strumień bajtów z plikiem CSV (kodowanie UTF-8-SIG dla Excela).</p>
@@ -446,14 +447,14 @@ Nawet jeśli użytkownik pobierze plik, nie zobaczy w nim danych, do których ni
 <span class="sig-prename descclassname"><span class="pre">routes.flights.</span></span><span class="sig-name descname"><span class="pre">get_filtered_query_parts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">user</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/flights.html#get_filtered_query_parts"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.flights.get_filtered_query_parts" title="Link to this definition"></a></dt>
 <dd><p>Generator bezpiecznych zapytań SQL.</p>
 <p>Dynamicznie konstruuje klauzulę WHERE oraz mapę parametrów dla silnika SQL.</p>
-<p><strong>Bezpieczeństwo</strong>
-Implementuje wzorzec Query Builder w celu uniknięcia SQL Injection poprzez
+<p><strong>Bezpieczeństwo</strong></p>
+<p>Implementuje wzorzec Query Builder w celu uniknięcia SQL Injection poprzez
 wymuszenie stosowania parametrów wiązanych (bind parameters).
 Krytycznym elementem jest sposób przekazywania wartości. Zamiast sklejać stringi (co grozi SQL Injection),
 funkcja zwraca tekst zapytania z placeholderami (np. <cite>:fmodel</cite>) oraz słownik parametrów.
 Silnik SQLAlchemy (korzystając z psycopg2) bezpiecznie „escapuje” te wartości przed wysłaniem do bazy.</p>
-<p><strong>Logika uprawnień (Row-Level Security emulation)</strong>
-Dla użytkowników bez roli technicznej (admin/mechanik), zapytanie jest
+<p><strong>Logika uprawnień (Row-Level Security emulation)</strong></p>
+<p>Dla użytkowników bez roli technicznej (admin/mechanik), zapytanie jest
 automatycznie rozszerzane o filtrację rekordów oznaczonych jako «deleted»,
 chyba że użytkownik jest właścicielem rekordu (p1 lub p2).</p>
 <dl class="field-list simple">
@@ -485,27 +486,25 @@ chyba że użytkownik jest właścicielem rekordu (p1 lub p2).</p>
 <dd><p>Kontroler widoku dziennika lotów z implementacją stronicowania po stronie serwera (Widok Operacyjny).</p>
 <p>Odpowiada za prezentację danych operacyjnych z uwzględnieniem skomplikowanych
 reguł dostępu do danych osobowych (RODO/GDPR) oraz optymalizacji wydajności.</p>
-<p><strong>Proces przetwarzania</strong>
-1. Agregacja uprawnień: Pobieranie list pilotów z uwzględnieniem flag RODO</p>
-<blockquote>
-<div><p>(pokazywac_dane) - filtruje dane na poziomie bazy, aby zminimalizować transfer.</p>
-</div></blockquote>
-<ol class="arabic simple" start="2">
+<p><strong>Proces przetwarzania</strong></p>
+<ol class="arabic simple">
+<li><p>Agregacja uprawnień: Pobieranie list pilotów z uwzględnieniem flag RODO
+(pokazywac_dane) - filtruje dane na poziomie bazy, aby zminimalizować transfer.</p></li>
 <li><p>Paginacja: Wykorzystuje parametry LIMIT i OFFSET. Oblicza całkowitą liczbę
 rekordów w oddzielnym zapytaniu (count_sql) dla poprawnego renderowania paginatora.</p></li>
 <li><p>Optymalizacja: Dane pobierane są z widoku <cite>pdt_rpt.v_dziennik_lotow</cite>, który
 dokonuje wstępnych złączeń (JOIN) na poziomie silnika DB.</p></li>
 </ol>
-<p><strong>Zarządzanie Prywatnością</strong>
-Listy rozwijane (dropdowny) z nazwiskami pilotów są generowane dynamicznie w zależności od roli:
+<p><strong>Zarządzanie Prywatnością</strong></p>
+<p>Listy rozwijane (dropdowny) z nazwiskami pilotów są generowane dynamicznie w zależności od roli:
 - <strong>Admin/Mechanik:</strong> Widzą pełną listę wszystkich osób w systemie.
 - <strong>Zwykły Pilot:</strong> Widzi na liście tylko siebie oraz tych pilotów, którzy w swoim profilu</p>
 <blockquote>
 <div><p>aktywnie wyrazili zgodę na przetwarzanie danych (<cite>pokazywac_dane = true</cite>).
 Zapobiega to nieuprawnionemu profilowaniu innych członków aeroklubu.</p>
 </div></blockquote>
-<p><strong>Optymalizacja Wydajności (Server-Side Pagination):</strong>
-Zamiast pobierać całą historię lotów (która może liczyć tysiące rekordów) do pamięci RAM,
+<p><strong>Optymalizacja Wydajności (Server-Side Pagination):</strong></p>
+<p>Zamiast pobierać całą historię lotów (która może liczyć tysiące rekordów) do pamięci RAM,
 funkcja realizuje stronicowanie po stronie bazy danych (<cite>LIMIT … OFFSET …</cite>).
 Redukuje to obciążenie serwera i czas ładowania strony.</p>
 <dl class="field-list simple">
@@ -524,10 +523,10 @@ Redukuje to obciążenie serwera i czas ładowania strony.</p>
 <p>Moduł mechanika (CAMO) z pełnym nadzorem technicznym.</p>
 <p>Obsługuje Panel Techniczny: statusy resursów szybowców, zgłaszanie i obsługę usterek,
 dodawanie przeglądów okresowych oraz dokumentację zdjęciową napraw.</p>
-<p><strong>System Logowania Audytowego (Maintenance &amp; Safety Audit)</strong>
-Logi w tym module dokumentują krytyczne zmiany w statusie zdatności floty.
+<p><strong>System Logowania Audytowego (Maintenance &amp; Safety Audit)</strong></p>
+<p>Logi w tym module dokumentują krytyczne zmiany w statusie zdatności floty.
 Szczególny nacisk położono na audyt przesyłania plików oraz resetowanie liczników przeglądów.</p>
-<p>Przykład logu obsługi technicznej (JSON):
+<p>Przykład logu obsługi technicznej (JSON)::
 {</p>
 <blockquote>
 <div><p>„timestamp”: „2026-01-11T20:15:30.987Z”,
@@ -545,12 +544,12 @@ Szczególny nacisk położono na audyt przesyłania plików oraz resetowanie lic
 <span class="sig-prename descclassname"><span class="pre">routes.mechanic.</span></span><span class="sig-name descname"><span class="pre">add_inspection</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/mechanic.html#add_inspection"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.mechanic.add_inspection" title="Link to this definition"></a></dt>
 <dd><p>Rejestracja wykonania czynności obsługowej (Maintenance Release).</p>
 <p>Jest to krytyczna operacja systemowa, która wpływa na obliczanie resursów.</p>
-<p><strong>Logika Biznesowa (Reset Liczników):</strong>
-Wprowadzenie nowego przeglądu do bazy danych (<cite>INSERT INTO pdt_core.przeglad</cite>)
+<p><strong>Logika Biznesowa (Reset Liczników):</strong></p>
+<p>Wprowadzenie nowego przeglądu do bazy danych (<cite>INSERT INTO pdt_core.przeglad</cite>)
 powoduje, że algorytm w <cite>mechanic.index</cite> zacznie liczyć godziny „od przeglądu”
 od nowej daty. Innymi słowy – funkcja ta „zeruje licznik” do następnego przeglądu okresowego.</p>
-<p><strong>Wymagania:</strong>
-Dostępna tylko dla ról technicznych (<cite>admin</cite>, <cite>mechanik</cite>), ponieważ błędny wpis
+<p><strong>Wymagania:</strong></p>
+<p>Dostępna tylko dla ról technicznych (<cite>admin</cite>, <cite>mechanik</cite>), ponieważ błędny wpis
 może doprowadzić do przekroczenia resursu i utraty ubezpieczenia statku.</p>
 </dd></dl>
 
@@ -560,13 +559,15 @@ może doprowadzić do przekroczenia resursu i utraty ubezpieczenia statku.</p>
 <dd><p>Walidator typu MIME i rozszerzenia pliku.</p>
 <p>Sprawdza, czy przesyłany plik ma bezpieczne rozszerzenie (zdefiniowane w <code class="docutils literal notranslate"><span class="pre">ALLOWED_EXTENSIONS</span></code>).
 Jest to kluczowa linia obrony przed atakami typu <strong>RCE (Remote Code Execution)</strong>.</p>
-<p><strong>Zagrożenie:</strong>
-Bez tej weryfikacji atakujący mógłby przesłać skrypt wykonywalny (np. <code class="docutils literal notranslate"><span class="pre">malware.php</span></code>, <code class="docutils literal notranslate"><span class="pre">script.py</span></code>, <code class="docutils literal notranslate"><span class="pre">cmd.exe</span></code>)
+<p><strong>Zagrożenie:</strong></p>
+<p>Bez tej weryfikacji atakujący mógłby przesłać skrypt wykonywalny (np. <code class="docutils literal notranslate"><span class="pre">malware.php</span></code>, <code class="docutils literal notranslate"><span class="pre">script.py</span></code>, <code class="docutils literal notranslate"><span class="pre">cmd.exe</span></code>)
 zamiast zdjęcia. Jeśli serwer pozwoliłby na jego wykonanie, haker przejąłby kontrolę nad systemem.</p>
-<p><strong>Mechanizm:</strong>
-1. Sprawdza obecność kropki w nazwie.
-2. Pobiera rozszerzenie (ostatni element po kropce).
-3. Konwertuje na małe litery i sprawdza obecność na białej liście (whitelist).</p>
+<p><strong>Mechanizm:</strong></p>
+<ol class="arabic simple">
+<li><p>Sprawdza obecność kropki w nazwie.</p></li>
+<li><p>Pobiera rozszerzenie (ostatni element po kropce).</p></li>
+<li><p>Konwertuje na małe litery i sprawdza obecność na białej liście (whitelist).</p></li>
+</ol>
 <dl class="field-list simple">
 <dt class="field-odd">Parametry<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>filename</strong> (<em>str</em>) – Oryginalna nazwa przesyłanego pliku.</p>
@@ -585,12 +586,12 @@ zamiast zdjęcia. Jeśli serwer pozwoliłby na jego wykonanie, haker przejąłby
 <span class="sig-prename descclassname"><span class="pre">routes.mechanic.</span></span><span class="sig-name descname"><span class="pre">details</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id_usterka</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/mechanic.html#details"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.mechanic.details" title="Link to this definition"></a></dt>
 <dd><p>Obsługa cyklu życia usterki technicznej (Workflow Naprawczy).</p>
 <p>Zarządza pełnym procesem obsługi zgłoszenia: od otwarcia, przez diagnostykę, aż do zamknięcia.</p>
-<p><strong>Śledzenie Zmian (Audit Log):</strong>
-Każda interwencja mechanika (dodanie opisu, wymiana części) jest rejestrowana w tabeli
+<p><strong>Śledzenie Zmian (Audit Log):</strong></p>
+<p>Każda interwencja mechanika (dodanie opisu, wymiana części) jest rejestrowana w tabeli
 <cite>pdt_core.naprawa</cite> z sygnaturą czasową i ID użytkownika. Pozwala to odtworzyć
 historię naprawy w przypadku późniejszych problemów (np. w dochodzeniu powypadkowym).</p>
-<p><strong>Dokumentacja Cyfrowa:</strong>
-Obsługuje bezpieczny upload zdjęć dowodowych. Pliki otrzymują losowe nazwy UUID,
+<p><strong>Dokumentacja Cyfrowa:</strong></p>
+<p>Obsługuje bezpieczny upload zdjęć dowodowych. Pliki otrzymują losowe nazwy UUID,
 aby zapobiec nadpisywaniu plików oraz atakom typu Path Traversal lub wykonywaniu złośliwych skryptów.</p>
 </dd></dl>
 
@@ -618,10 +619,12 @@ historię napraw).</p>
 <p>Tworzy plik CSV zawierający kluczowe wskaźniki zdatności dla wszystkich szybowców.
 Dane te są często wymagane do raportowania do urzędu lotnictwa cywilnego (ULC)
 lub dla zarządu aeroklubu w celu planowania budżetu na remonty.</p>
-<p><strong>Zawartość Raportu:</strong>
-- Znaki rejestracyjne i typ.
-- Całkowity nalot (TTSN).
-- Data i rodzaj ostatniego przeglądu (np. ARC, 50h, 500h).</p>
+<p><strong>Zawartość Raportu:</strong></p>
+<ul class="simple">
+<li><p>Znaki rejestracyjne i typ.</p></li>
+<li><p>Całkowity nalot (TTSN).</p></li>
+<li><p>Data i rodzaj ostatniego przeglądu (np. ARC, 50h, 500h).</p></li>
+</ul>
 <dl class="field-list simple">
 <dt class="field-odd">Zwraca<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Plik <cite>flota_status.csv</cite> gotowy do pobrania.</p>
@@ -654,8 +657,8 @@ Plik zawiera daty zgłoszeń, co pozwala priorytetyzować naprawy według czasu 
 <span class="sig-prename descclassname"><span class="pre">routes.mechanic.</span></span><span class="sig-name descname"><span class="pre">glider_details</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id_szybowiec</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/mechanic.html#glider_details"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.mechanic.glider_details" title="Link to this definition"></a></dt>
 <dd><p>Cyfrowa Książka Płatowca (Digital Logbook).</p>
 <p>Agreguje pełną historię eksploatacyjną konkretnego statku powietrznego.</p>
-<p><strong>Agregacja Danych:</strong>
-Widok łączy dane z trzech niezależnych źródeł w jedną spójną kartę:
+<p><strong>Agregacja Danych:</strong></p>
+<p>Widok łączy dane z trzech niezależnych źródeł w jedną spójną kartę:
 1.  <cite>pdt_core.v_szybowiec_nalot</cite>: Pobiera sumaryczny czas lotu (Total Time Since New).
 2.  <cite>pdt_core.przeglad</cite>: Historię obsługi technicznej (kto i kiedy wykonał przegląd).
 3.  <cite>pdt_core.usterka</cite>: Historię awarii i napraw.</p>
@@ -673,8 +676,8 @@ Widok łączy dane z trzech niezależnych źródeł w jedną spójną kartę:
 <dd><p>Pulpit zarządzania zdatnością floty CAMO (Continuing Airworthiness Management Organisation).</p>
 <p>Agreguje dane techniczne z całego systemu, aby dać mechanikowi natychmiastowy
 wgląd w stan zdatności floty.</p>
-<p><strong>Algorytm Obliczania Resursów (TTSN / TSO):</strong>
-Dla każdego szybowca system wykonuje analizę w czasie rzeczywistym:
+<p><strong>Algorytm Obliczania Resursów (TTSN / TSO):</strong></p>
+<p>Dla każdego szybowca system wykonuje analizę w czasie rzeczywistym:
 1. Pobiera stan nalotu całkowitego z widoku zmaterializowanego/widoku raportowego.
 2. Identyfikuje datę ostatniego przeglądu okresowego typu «500h» lub «Annual».
 3. Wykonuje agregację SQL: <cite>SUM(EXTRACT(EPOCH FROM (dt_ladowanie - dt_start)))</cite></p>
@@ -694,10 +697,10 @@ wymagałoby to optymalizacji do pojedynczego zapytania z GROUP BY.</p>
 <p>Moduł raportów i statystyk z rozbudowanym audytem dostępu.</p>
 <p>Generuje zestawienia finansowe, rankingi nalotów pilotów, statystyki szybowców
 oraz umożliwia eksport tych danych do plików CSV.</p>
-<p><strong>System Logowania Audytowego (Data Privacy Audit)</strong>
-Wszystkie operacje eksportu są traktowane jako zdarzenia wysokiego ryzyka i logowane
+<p><strong>System Logowania Audytowego (Data Privacy Audit)</strong></p>
+<p>Wszystkie operacje eksportu są traktowane jako zdarzenia wysokiego ryzyka i logowane
 do kanału <cite>security</cite> z uwzględnieniem filtrów RODO i IP sprawcy.</p>
-<p>Przykład logu eksportu finansowego (JSON):
+<p>Przykład logu eksportu finansowego (JSON)::
 {</p>
 <blockquote>
 <div><p>„timestamp”: „2026-01-11T20:45:12.123Z”,
@@ -714,13 +717,13 @@ do kanału <cite>security</cite> z uwzględnieniem filtrów RODO i IP sprawcy.</
 <span class="sig-prename descclassname"><span class="pre">routes.reports.</span></span><span class="sig-name descname"><span class="pre">dashboard</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/reports.html#dashboard"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.reports.dashboard" title="Link to this definition"></a></dt>
 <dd><p>Centrum analityki operacyjno-finansowej systemu.</p>
 <p>Prezentuje zagregowane dane, wykorzystując moc obliczeniową silnika bazy danych (PostgreSQL).</p>
-<p><strong>Optymalizacja Wydajności:</strong>
-Zamiast pobierać tysiące rekordów lotów do Pythona i sumować je w pętli,
+<p><strong>Optymalizacja Wydajności:</strong></p>
+<p>Zamiast pobierać tysiące rekordów lotów do Pythona i sumować je w pętli,
 funkcja korzysta z gotowych widoków SQL (<cite>pdt_rpt…</cite> i <cite>pdt_core…</cite>).
 Baza danych wykonuje agregacje (<cite>SUM</cite>, <cite>COUNT</cite>, <cite>GROUP BY</cite>) znacznie szybciej,
 a Python otrzymuje tylko gotowe wyniki do wyświetlenia.</p>
-<p><strong>Logika Finansowa:</strong>
-Sekcja „Dłużnicy” i „Saldo” opiera się na widoku <cite>v_rozliczenie_finansowe</cite>, który
+<p><strong>Logika Finansowa:</strong></p>
+<p>Sekcja „Dłużnicy” i „Saldo” opiera się na widoku <cite>v_rozliczenie_finansowe</cite>, który
 dynamicznie wylicza koszt każdego lotu w oparciu o cennik szybowca, rodzaj startu
 oraz rolę pilota (np. podział kosztów 50/50 w locie koleżeńskim).</p>
 </dd></dl>
@@ -730,11 +733,11 @@ oraz rolę pilota (np. podział kosztów 50/50 w locie koleżeńskim).</p>
 <span class="sig-prename descclassname"><span class="pre">routes.reports.</span></span><span class="sig-name descname"><span class="pre">export_finanse_csv</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/reports.html#export_finanse_csv"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.reports.export_finanse_csv" title="Link to this definition"></a></dt>
 <dd><p>Szczegółowy wyciąg operacji lotniczych (Billing Export).</p>
 <p>Generuje zestawienie wszystkich lotów obciążających konto użytkownika.</p>
-<p><strong>Zastosowanie:</strong>
-Plik ten służy pilotom do weryfikacji poprawności naliczeń (np. czy lot
+<p><strong>Zastosowanie:</strong></p>
+<p>Plik ten służy pilotom do weryfikacji poprawności naliczeń (np. czy lot
 został policzony jako szkolny czy samodzielny) oraz jako podstawa do rozliczeń księgowych.</p>
-<p><strong>Bezpieczeństwo:</strong>
-Zwykły pilot może pobrać TYLKO swoje operacje (<cite>WHERE id_pilot = :p_id</cite>).
+<p><strong>Bezpieczeństwo:</strong></p>
+<p>Zwykły pilot może pobrać TYLKO swoje operacje (<cite>WHERE id_pilot = :p_id</cite>).
 Próba manipulacji ID w zapytaniu jest niemożliwa dzięki pobieraniu ID z bezpiecznej sesji (<cite>current_user</cite>).</p>
 </dd></dl>
 
@@ -743,15 +746,15 @@ Próba manipulacji ID w zapytaniu jest niemożliwa dzięki pobieraniu ID z bezpi
 <span class="sig-prename descclassname"><span class="pre">routes.reports.</span></span><span class="sig-name descname"><span class="pre">export_piloci_csv</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/reports.html#export_piloci_csv"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.reports.export_piloci_csv" title="Link to this definition"></a></dt>
 <dd><p>Eksport rankingu nalotów z filtrowaniem prywatności.</p>
 <p>Generuje plik CSV z listą pilotów i ich wylatanymi godzinami.</p>
-<p><strong>Logika RODO (Data Masking):</strong>
-Funkcja sprawdza rolę pobierającego:
-- <strong>Admin:</strong> Otrzymuje pełną listę z imionami i nazwiskami.
-- <strong>Zwykły Użytkownik:</strong> Otrzymuje listę, na której dane pilotów, którzy nie wyrazili</p>
-<blockquote>
-<div><p>zgody (<cite>pokazywac_dane = false</cite>), są zastąpione gwiazdkami (<cite>***</cite>).
+<p><strong>Logika RODO (Data Masking):</strong></p>
+<p>Funkcja sprawdza rolę pobierającego:</p>
+<ul class="simple">
+<li><p><strong>Admin:</strong> Otrzymuje pełną listę z imionami i nazwiskami.</p></li>
+<li><p><strong>Zwykły Użytkownik:</strong> Otrzymuje listę, na której dane pilotów, którzy nie wyrazili
+zgody (<cite>pokazywac_dane = false</cite>), są zastąpione gwiazdkami (<cite>***</cite>).
 Dzięki temu zachowana jest transparentność rankingu (widać, że ktoś ma X godzin),
-ale chroniona jest tożsamość osób dbających o prywatność.</p>
-</div></blockquote>
+ale chroniona jest tożsamość osób dbających o prywatność.</p></li>
+</ul>
 </dd></dl>
 
 <dl class="py function">
@@ -787,13 +790,11 @@ szybowców lub sprzedaży tych najmniej używanych (nierentownych).</p>
 <span class="sig-prename descclassname"><span class="pre">routes.reports.</span></span><span class="sig-name descname"><span class="pre">generate_csv_response</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/reports.html#generate_csv_response"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.reports.generate_csv_response" title="Link to this definition"></a></dt>
 <dd><p>Uniwersalny generator odpowiedzi HTTP dla plików CSV.</p>
 <p>Funkcja pomocnicza (Utility), która standaryzuje sposób wysyłania plików do przeglądarki.</p>
-<p><strong>Szczegóły Techniczne:</strong>
-1.  <strong>Kodowanie UTF-8-SIG:</strong> Dodaje na początku pliku niewidoczny znak BOM (Byte Order Mark).</p>
-<blockquote>
-<div><p>Jest to „hack” konieczny dla programu Microsoft Excel, aby poprawnie wyświetlał
-polskie znaki (ą, ę, ś, ć). Bez tego Excel otwierałby pliki jako „krzaczki”.</p>
-</div></blockquote>
-<ol class="arabic simple" start="2">
+<p><strong>Szczegóły Techniczne:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Kodowanie UTF-8-SIG:</strong> Dodaje na początku pliku niewidoczny znak BOM (Byte Order Mark).
+Jest to „hack” konieczny dla programu Microsoft Excel, aby poprawnie wyświetlał
+polskie znaki (ą, ę, ś, ć). Bez tego Excel otwierałby pliki jako „krzaczki”.</p></li>
 <li><p><strong>Nagłówki MIME:</strong> Ustawia <cite>Content-Disposition: attachment</cite>, co wymusza na przeglądarce
 okno zapisu pliku zamiast próby wyświetlenia tekstu w oknie.</p></li>
 </ol>
@@ -813,10 +814,10 @@ okno zapisu pliku zamiast próby wyświetlenia tekstu w oknie.</p></li>
 <p>Moduł administracyjny (Admin) z systemem pełnego nadzoru (Audit Trail).</p>
 <p>Zarządzanie użytkownikami, edycja danych osobowych, ról systemowych
 oraz ręczne korekty salda finansowego.</p>
-<p><strong>System Logowania Audytowego (Cybersecurity Standard)</strong>
-Wszystkie akcje administracyjne są rejestrowane w kanałach <cite>security</cite> oraz <cite>application</cite>.
+<p><strong>System Logowania Audytowego (Cybersecurity Standard)</strong></p>
+<p>Wszystkie akcje administracyjne są rejestrowane w kanałach <cite>security</cite> oraz <cite>application</cite>.
 Każdy wpis zawiera <cite>src_ip</cite> administratora oraz unikalny podpis HMAC-SHA256.</p>
-<p>Przykład logu korekty finansowej (JSON):
+<p>Przykład logu korekty finansowej (JSON)::
 {</p>
 <blockquote>
 <div><p>„timestamp”: „2026-01-11T19:05:12.456Z”,
@@ -832,34 +833,37 @@ Każdy wpis zawiera <cite>src_ip</cite> administratora oraz unikalny podpis HMAC
 <dt class="sig sig-object py" id="routes.admin.user_edit">
 <span class="sig-prename descclassname"><span class="pre">routes.admin.</span></span><span class="sig-name descname"><span class="pre">user_edit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id_user</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/admin.html#user_edit"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.admin.user_edit" title="Link to this definition"></a></dt>
 <dd><p>Kontroler zarządzania tożsamością i korekt finansowych.</p>
-<dl class="simple">
-<dt><em>Wzorzec Action Dispatcher</em></dt><dd><p>Rozróżnia akcje (save_data, korekta_salda, create_pilot_profile) na podstawie
+<p><em>Wzorzec Action Dispatcher</em></p>
+<blockquote>
+<div><p>Rozróżnia akcje (save_data, korekta_salda, create_pilot_profile) na podstawie
 wartości parametru «action» w żądaniu POST.</p>
-</dd>
-</dl>
+</div></blockquote>
 <p><strong>Logika Biznesowa i Obsługiwane Akcje:</strong></p>
 <ol class="arabic">
-<li><p><strong>«save_data» (Aktualizacja):</strong>
--   Zmienia dane logowania i osobowe.
--   <strong>Soft Delete:</strong> Obsługuje przełącznik „Konto Aktywne”. Odznaczenie powoduje ustawienie</p>
-<blockquote>
-<div><p><cite>deleted_at = NOW()</cite>. Użytkownik nie może się zalogować, ale jego historia lotów
-i operacji finansowych pozostaje nienaruszona (Integralność Referencyjna).</p>
-</div></blockquote>
+<li><p><strong>«save_data» (Aktualizacja):</strong></p>
+<ul class="simple">
+<li><p>Zmienia dane logowania i osobowe.</p></li>
+<li><p><strong>Soft Delete:</strong> Obsługuje przełącznik „Konto Aktywne”. Odznaczenie powoduje ustawienie
+<cite>deleted_at = NOW()</cite>. Użytkownik nie może się zalogować, ale jego historia lotów
+i operacji finansowych pozostaje nienaruszona (Integralność Referencyjna).</p></li>
+</ul>
 </li>
-<li><p><strong>«korekta_salda» (Finanse):</strong>
--   Umożliwia wprowadzanie korekt salda in-minus (obciążenia ręczne).
--   Wpisy w tabeli <cite>wplata</cite> z ujemną kwotą są dopuszczalne i agregowane
-przez widoki salda jako operacje debetowe.</p></li>
-<li><p><strong>«create_pilot_profile» (Naprawa Danych):</strong>
--   Dla kont technicznych (np. «mechanik»), które pierwotnie nie miały profilu osobowego,</p>
-<blockquote>
-<div><p>funkcja tworzy pusty rekord w <cite>pdt_core.pilot</cite> i łączy go relacją 1:1.</p>
-</div></blockquote>
+<li><p><strong>«korekta_salda» (Finanse):</strong></p>
+<ul class="simple">
+<li><p>Umożliwia wprowadzanie korekt salda in-minus (obciążenia ręczne).</p></li>
+<li><p>Wpisy w tabeli <cite>wplata</cite> z ujemną kwotą są dopuszczalne i agregowane</p></li>
+</ul>
+<p>przez widoki salda jako operacje debetowe.</p>
+</li>
+<li><p><strong>«create_pilot_profile» (Naprawa Danych):</strong></p>
+<ul class="simple">
+<li><p>Dla kont technicznych (np. «mechanik»), które pierwotnie nie miały profilu osobowego,
+funkcja tworzy pusty rekord w <cite>pdt_core.pilot</cite> i łączy go relacją 1:1.</p></li>
+</ul>
 </li>
 </ol>
-<p><strong>Audyt (Historia Operacji):</strong>
-Wyświetla historię finansową pobraną z widoku <cite>pdt_rpt.v_historia_finansowa</cite>. Widok ten
+<p><strong>Audyt (Historia Operacji):</strong></p>
+<p>Wyświetla historię finansową pobraną z widoku <cite>pdt_rpt.v_historia_finansowa</cite>. Widok ten
 używa zaawansowanych funkcji okna SQL (<cite>SUM(…) OVER(…)</cite>) do dynamicznego wyliczania
 salda „krok po kroku” po każdej operacji.</p>
 </dd></dl>
@@ -868,17 +872,21 @@ salda „krok po kroku” po każdej operacji.</p>
 <dt class="sig sig-object py" id="routes.admin.users_list">
 <span class="sig-prename descclassname"><span class="pre">routes.admin.</span></span><span class="sig-name descname"><span class="pre">users_list</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/routes/admin.html#users_list"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#routes.admin.users_list" title="Link to this definition"></a></dt>
 <dd><p>Raport agregujący metryki kont użytkowników.</p>
-<p>Generuje tabelaryczny raport o użytkownikach, agregując dane z czterech różnych obszarów systemu:
-1.  <strong>Tożsamość Cyfrowa:</strong> Login i rola systemowa (z <cite>pdt_auth.uzytkownik</cite>).
-2.  <strong>Tożsamość Osobowaa:</strong> Imię, nazwisko, licencja (z <cite>pdt_core.pilot</cite>).
-3.  <strong>Finanse:</strong> Aktualne saldo (z widoku <cite>pdt_rpt.v_saldo_pilota</cite>).
-4.  <strong>Operacje:</strong> Suma wylatanych godzin (z widoku <cite>pdt_core.v_pilot_nalot</cite>).</p>
-<p><strong>Techniczne aspekty zapytania SQL:</strong>
-Zastosowano <cite>LEFT JOIN</cite> do tabel powiązanych. Jest to krytyczne dla poprawności działania systemu,
-ponieważ pozwala wyświetlić na liście również:
--   Konta techniczne (np. «mechanik»), które nie posiadają jeszcze profilu pilota.
--   Konta zablokowane (gdzie <cite>deleted_at</cite> nie jest NULL).
-Gdyby użyto zwykłego <cite>JOIN</cite>, konta te zniknęłyby z listy, uniemożliwiając adminowi zarządzanie nimi.</p>
+<p>Generuje tabelaryczny raport o użytkownikach, agregując dane z czterech różnych obszarów systemu:</p>
+<ol class="arabic simple">
+<li><p><strong>Tożsamość Cyfrowa:</strong> Login i rola systemowa (z <cite>pdt_auth.uzytkownik</cite>).</p></li>
+<li><p><strong>Tożsamość Osobowaa:</strong> Imię, nazwisko, licencja (z <cite>pdt_core.pilot</cite>).</p></li>
+<li><p><strong>Finanse:</strong> Aktualne saldo (z widoku <cite>pdt_rpt.v_saldo_pilota</cite>).</p></li>
+<li><p><strong>Operacje:</strong> Suma wylatanych godzin (z widoku <cite>pdt_core.v_pilot_nalot</cite>).</p></li>
+</ol>
+<p><strong>Techniczne aspekty zapytania SQL:</strong></p>
+<p>Zastosowano <cite>LEFT JOIN</cite> do tabel powiązanych. Jest to krytyczne dla poprawności działania systemu,
+ponieważ pozwala wyświetlić na liście również:</p>
+<ul class="simple">
+<li><p>Konta techniczne (np. «mechanik»), które nie posiadają jeszcze profilu pilota.</p></li>
+<li><p>Konta zablokowane (gdzie <cite>deleted_at</cite> nie jest NULL).</p></li>
+</ul>
+<p>Gdyby użyto zwykłego <cite>JOIN</cite>, konta te zniknęłyby z listy, uniemożliwiając adminowi zarządzanie nimi.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Zwraca<span class="colon">:</span></dt>
 <dd class="field-odd"><p>Wyrenderowany szablon listy użytkowników.</p>
@@ -1110,8 +1118,38 @@ customized per-model by overriding <code class="xref py py-attr docutils literal
 </dd></dl>
 
 </section>
-<section id="modul-app-konfiguracja-aplikacji">
-<h3>Moduł: App (Konfiguracja Aplikacji)<a class="headerlink" href="#modul-app-konfiguracja-aplikacji" title="Link to this heading"></a></h3>
+<section id="module-app">
+<span id="modul-app-konfiguracja-aplikacji"></span><h3>Moduł: App (Konfiguracja Aplikacji)<a class="headerlink" href="#module-app" title="Link to this heading"></a></h3>
+<p>Główny plik startowy aplikacji (Application Factory).</p>
+<p>Zawiera funkcję <cite>create_app</cite>, która:
+1. Konfiguruje aplikację Flask.
+2. Inicjalizuje połączenie z bazą danych.
+3. Konfiguruje zabezpieczenia (CSRF, Limiter, Secure Cookies, Cryptographic Auditing).
+4. Rejestruje Blueprints (moduły routingu).</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="app.create_app">
+<span class="sig-prename descclassname"><span class="pre">app.</span></span><span class="sig-name descname"><span class="pre">create_app</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/app.html#create_app"><span class="viewcode-link"><span class="pre">[źródło]</span></span></a><a class="headerlink" href="#app.create_app" title="Link to this definition"></a></dt>
+<dd><p>Implementacja wzorca Application Factory dla frameworka Flask.</p>
+<p>Konfiguracja stosu technologicznego:
+- Inicjalizacja rozszerzeń (ORM, Security, Rate Limiter).
+- Konfiguracja middleware bezpieczeństwa: CSRF Protection, Secure Cookie,</p>
+<blockquote>
+<div><p>HSTS (w trybie produkcyjnym).</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>Rejestracja modułów routingu (Blueprints),</p></li>
+<li><p>Konfiguracja globalnych handlerów błędów (Audit Trails).</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Zwraca<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Skonfigurowana aplikacja gotowa do uruchomienia.</p>
+</dd>
+<dt class="field-even">Typ zwracany<span class="colon">:</span></dt>
+<dd class="field-even"><p>Flask</p>
+</dd>
+</dl>
+</dd></dl>
+
 </section>
 <section id="module-extensions">
 <span id="modul-extensions-rozszerzenia"></span><h3>Moduł: Extensions (Rozszerzenia)<a class="headerlink" href="#module-extensions" title="Link to this heading"></a></h3>

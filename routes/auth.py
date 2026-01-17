@@ -5,10 +5,11 @@ Obsługuje logowanie, wylogowywanie, rejestrację nowych użytkowników
 oraz zarządzanie profilem.
 
 **System Logowania i Audytu (Cybersecurity Compliance)**
+
 Wszystkie zdarzenia w tym module są logowane do kanału `security` w formacie JSON
 z cyfrowym podpisem HMAC-SHA256, co zapewnia integralność logów (nienaruszalność).
 
-Przykład logu bezpieczeństwa (JSON):
+Przykład logu bezpieczeństwa (JSON)::
 {
     "timestamp": "2026-01-11T18:20:01.123Z",
     "level": "WARNING",
@@ -45,6 +46,7 @@ def login():
         Proces uwierzytelniania z wielowarstwowym mechanizmem obronnym.
 
         **Warstwy bezpieczeństwa**
+
         1. Rate Limiting: Ograniczenie prób logowania na poziomie IP (Flask-Limiter)
            w celu mitigacji ataków Brute-force i Dictionary.
         2. Kryptografia: Weryfikacja hasła funkcją `check_password_hash` z solą
@@ -54,6 +56,7 @@ def login():
         4. Session Management: Inicjalizacja bezpiecznej sesji (HttpOnly, Secure flag).
 
         **Przepływ Logiki**
+
         - Pobranie użytkownika na podstawie unikalnego loginu.
         - Weryfikacja kryptograficzna hasła.
         - Sprawdzenie flagi aktywności konta (blokada administracyjna).
@@ -145,6 +148,7 @@ def generate_strong_password():
         nadawania słabych haseł domyślnych (np. "admin123").
 
         **Implementacja:**
+
         Korzysta z modułu `secrets` (a nie `random`), co gwarantuje wysoką entropię
         i nieprzewidywalność wygenerowanych znaków. Algorytm w pętli `while` upewnia się,
         że wylosowany ciąg spełnia rygorystyczne zasady polityki haseł (duże litery, znaki specjalne).
@@ -173,12 +177,14 @@ def register():
         tożsamości w systemie, zapewniając spójność danych między różnymi schematami bazy.
 
         **Transakcyjność (Atomowość):**
+
         Operacja jest wykonywana w ramach jednej transakcji bazy danych (`db.session`):
         1.  `INSERT` do `pdt_core.pilot` – tworzy profil osobowy.
         2.  `INSERT` do `pdt_auth.uzytkownik` – tworzy dane logowania, linkując je kluczem obcym do pilota.
         Jeśli którykolwiek krok zawiedzie, następuje `ROLLBACK`, zapobiegając powstaniu "sierot" w bazie.
 
         **Bezpieczeństwo:**
+
         - Generowanie silnego hasła tymczasowego (wymuszona złożoność: duże litery, znaki specjalne).
         - Haszowanie hasła przed zapisem do bazy.
 
@@ -249,6 +255,7 @@ def validate_password(password):
         wymuszając odpowiednią długość i złożoność znaków (zwiększając entropię hasła).
 
         **Reguły:**
+
         - Minimum 12 znaków.
         - Przynajmniej 2 duże litery [A-Z].
         - Przynajmniej 2 znaki specjalne (np. !@#).
@@ -281,13 +288,16 @@ def profile():
         bez angażowania administratora.
 
         **Obsługiwane Procesy:**
+
         1.  **Zmiana Hasła:**
+
             -   Wymaga podania starego hasła (re-authentication), co chroni przed zmianą
                 hasła przez osobę, która znalazła odblokowany komputer (Session Riding).
             -   Weryfikuje siłę nowego hasła funkcją `validate_password`.
             -   Zapisuje nowy hash (scrypt) w bazie.
 
         2.  **Ustawienia Prywatności (RODO / GDPR):**
+
             -   Pozwala pilotowi zdecydować, czy jego nazwisko i licencja są widoczne
                 na publicznych listach rankingowych i w raportach.
             -   Zmiana tych flag w bazie (`pdt_core.pilot`) natychmiast wpływa na

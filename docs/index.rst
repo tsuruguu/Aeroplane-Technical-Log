@@ -3,9 +3,14 @@ Dokumentacja Systemu PDT
 
 .. toctree::
    :maxdepth: 2
-   :caption: Spis treści:
+   :caption: Logika Aplikacji (Python)
 
    modules
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Architektura Danych (SQL)
+
    database
 
 Indices and tables

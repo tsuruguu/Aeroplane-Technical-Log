@@ -40,16 +40,13 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Spis treści:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Logika Aplikacji (Python)</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../modules.html">Dokumentacja Techniczna PDT</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architektura Danych (SQL)</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="../../database.html">Specyfikacja Techniczna Bazy Danych PDT</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#schemat-pdt-core-rdzen-operacyjny">Schemat pdt_core (Rdzeń Operacyjny)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#logika-biznesowa-i-automatyzacja-pdt-core">Logika Biznesowa i Automatyzacja (pdt_core)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#widoki-danych-pdt-core">Widoki Danych (pdt_core)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#schemat-pdt-auth-uwierzytelnianie-i-uprawnienia">Schemat pdt_auth (Uwierzytelnianie i Uprawnienia)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#schemat-pdt-rpt-warstwa-raportowa-i-finansowa">Schemat pdt_rpt (Warstwa Raportowa i Finansowa)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#analiza-normalizacji-i-zaleznosci-funkcyjnych">Analiza Normalizacji i Zależności Funkcyjnych</a></li>
 </ul>
 
         </div>
@@ -84,10 +81,11 @@
 <span class="sd">oraz umożliwia eksport tych danych do plików CSV.</span>
 
 <span class="sd">**System Logowania Audytowego (Data Privacy Audit)**</span>
+
 <span class="sd">Wszystkie operacje eksportu są traktowane jako zdarzenia wysokiego ryzyka i logowane</span>
 <span class="sd">do kanału `security` z uwzględnieniem filtrów RODO i IP sprawcy.</span>
 
-<span class="sd">Przykład logu eksportu finansowego (JSON):</span>
+<span class="sd">Przykład logu eksportu finansowego (JSON)::</span>
 <span class="sd">{</span>
 <span class="sd">    &quot;timestamp&quot;: &quot;2026-01-11T20:45:12.123Z&quot;,</span>
 <span class="sd">    &quot;level&quot;: &quot;INFO&quot;,</span>
@@ -123,12 +121,14 @@
 <span class="sd">        Prezentuje zagregowane dane, wykorzystując moc obliczeniową silnika bazy danych (PostgreSQL).</span>
 
 <span class="sd">        **Optymalizacja Wydajności:**</span>
+
 <span class="sd">        Zamiast pobierać tysiące rekordów lotów do Pythona i sumować je w pętli,</span>
 <span class="sd">        funkcja korzysta z gotowych widoków SQL (`pdt_rpt...` i `pdt_core...`).</span>
 <span class="sd">        Baza danych wykonuje agregacje (`SUM`, `COUNT`, `GROUP BY`) znacznie szybciej,</span>
 <span class="sd">        a Python otrzymuje tylko gotowe wyniki do wyświetlenia.</span>
 
 <span class="sd">        **Logika Finansowa:**</span>
+
 <span class="sd">        Sekcja &quot;Dłużnicy&quot; i &quot;Saldo&quot; opiera się na widoku `v_rozliczenie_finansowe`, który</span>
 <span class="sd">        dynamicznie wylicza koszt każdego lotu w oparciu o cennik szybowca, rodzaj startu</span>
 <span class="sd">        oraz rolę pilota (np. podział kosztów 50/50 w locie koleżeńskim).</span>
@@ -146,22 +146,24 @@
 <span class="s2">                          ORDER BY nalot_h DESC</span>
 <span class="s2">                          &quot;&quot;&quot;</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">sql_piloci</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">                          SELECT *</span>
-<span class="s2">                          FROM pdt_core.v_pilot_nalot</span>
-<span class="s2">                          ORDER BY nalot_h DESC</span>
-<span class="s2">                          &quot;&quot;&quot;</span><span class="p">)</span>
+        <span class="n">sql_piloci</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;SELECT * FROM pdt_core.v_pilot_nalot ORDER BY nalot_h DESC&quot;</span><span class="p">)</span>
 
-    <span class="n">piloci</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql_piloci</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+    <span class="n">piloci_raw</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql_piloci</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
 
-    <span class="n">my_stats</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s1">&#39;rank&#39;</span><span class="p">:</span> <span class="s1">&#39;-&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;hours&#39;</span><span class="p">:</span> <span class="mf">0.0</span>
-    <span class="p">}</span>
+    <span class="c1"># Przetwarzanie na słowniki (Logika: Marta widzi Martę)</span>
+    <span class="n">piloci</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">piloci_raw</span><span class="p">:</span>
+        <span class="n">p_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">_mapping</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">p_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id_pilot&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">:</span>
+            <span class="n">p_dict</span><span class="p">[</span><span class="s1">&#39;pokazywac_dane&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">p_dict</span><span class="p">[</span><span class="s1">&#39;pokazywac_licencje&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">piloci</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p_dict</span><span class="p">)</span>
+
+    <span class="n">my_stats</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;rank&#39;</span><span class="p">:</span> <span class="s1">&#39;-&#39;</span><span class="p">,</span> <span class="s1">&#39;hours&#39;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">}</span>
     <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">piloci</span><span class="p">):</span>
-        <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">id_pilot</span> <span class="o">==</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;id_pilot&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">:</span>
             <span class="n">my_stats</span><span class="p">[</span><span class="s1">&#39;rank&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">index</span> <span class="o">+</span> <span class="mi">1</span>
-            <span class="n">my_stats</span><span class="p">[</span><span class="s1">&#39;hours&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">nalot_h</span>
+            <span class="n">my_stats</span><span class="p">[</span><span class="s1">&#39;hours&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;nalot_h&#39;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
             <span class="k">break</span>
 
     <span class="n">szybowce</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
@@ -193,16 +195,11 @@
 
     <span class="n">dluznicy</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql_finanse</span><span class="p">,</span> <span class="n">query_params</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
     <span class="n">sumy_dlugow</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql_sumy</span><span class="p">,</span> <span class="n">query_params</span><span class="p">)</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
-
     <span class="n">total_cost_sum</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">kwota_do_zaplaty</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">dluznicy</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s1">&#39;reports_dashboard.html&#39;</span><span class="p">,</span>
-                           <span class="n">piloci</span><span class="o">=</span><span class="n">piloci</span><span class="p">,</span>
-                           <span class="n">szybowce</span><span class="o">=</span><span class="n">szybowce</span><span class="p">,</span>
-                           <span class="n">dluznicy</span><span class="o">=</span><span class="n">dluznicy</span><span class="p">,</span>
-                           <span class="n">sumy_dlugow</span><span class="o">=</span><span class="n">sumy_dlugow</span><span class="p">,</span>
-                           <span class="n">my_stats</span><span class="o">=</span><span class="n">my_stats</span><span class="p">,</span>
-                           <span class="n">total_cost_sum</span><span class="o">=</span><span class="n">total_cost_sum</span><span class="p">)</span></div>
+                           <span class="n">piloci</span><span class="o">=</span><span class="n">piloci</span><span class="p">,</span> <span class="n">szybowce</span><span class="o">=</span><span class="n">szybowce</span><span class="p">,</span> <span class="n">dluznicy</span><span class="o">=</span><span class="n">dluznicy</span><span class="p">,</span>
+                           <span class="n">sumy_dlugow</span><span class="o">=</span><span class="n">sumy_dlugow</span><span class="p">,</span> <span class="n">my_stats</span><span class="o">=</span><span class="n">my_stats</span><span class="p">,</span> <span class="n">total_cost_sum</span><span class="o">=</span><span class="n">total_cost_sum</span><span class="p">)</span></div>
 
 
 
@@ -217,7 +214,9 @@
 <span class="sd">        Generuje plik CSV z listą pilotów i ich wylatanymi godzinami.</span>
 
 <span class="sd">        **Logika RODO (Data Masking):**</span>
+
 <span class="sd">        Funkcja sprawdza rolę pobierającego:</span>
+
 <span class="sd">        - **Admin:** Otrzymuje pełną listę z imionami i nazwiskami.</span>
 <span class="sd">        - **Zwykły Użytkownik:** Otrzymuje listę, na której dane pilotów, którzy nie wyrazili</span>
 <span class="sd">          zgody (`pokazywac_dane = false`), są zastąpione gwiazdkami (`***`).</span>
@@ -247,12 +246,12 @@
     <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="s1">&#39;Imię&#39;</span><span class="p">,</span> <span class="s1">&#39;Nazwisko&#39;</span><span class="p">,</span> <span class="s1">&#39;Licencja&#39;</span><span class="p">,</span> <span class="s1">&#39;Nalot (h)&#39;</span><span class="p">])</span>
 
     <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span> <span class="ow">or</span> <span class="n">p</span><span class="o">.</span><span class="n">pokazywac_dane</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span> <span class="ow">or</span> <span class="n">p</span><span class="o">.</span><span class="n">id_pilot</span> <span class="o">==</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span> <span class="ow">or</span> <span class="n">p</span><span class="o">.</span><span class="n">pokazywac_dane</span><span class="p">:</span>
             <span class="n">fname</span><span class="p">,</span> <span class="n">lname</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">imie</span><span class="p">,</span> <span class="n">p</span><span class="o">.</span><span class="n">nazwisko</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">fname</span><span class="p">,</span> <span class="n">lname</span> <span class="o">=</span> <span class="s2">&quot;***&quot;</span><span class="p">,</span> <span class="s2">&quot;***&quot;</span>
 
-        <span class="n">lic</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">licencja</span> <span class="k">if</span> <span class="p">(</span><span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span> <span class="ow">or</span> <span class="n">p</span><span class="o">.</span><span class="n">pokazywac_licencje</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;***&quot;</span>
+        <span class="n">lic</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">licencja</span> <span class="k">if</span> <span class="p">(</span><span class="n">current_user</span><span class="o">.</span><span class="n">rola</span> <span class="o">==</span> <span class="s1">&#39;admin&#39;</span> <span class="ow">or</span> <span class="n">p</span><span class="o">.</span><span class="n">id_pilot</span> <span class="o">==</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span> <span class="ow">or</span> <span class="n">p</span><span class="o">.</span><span class="n">pokazywac_licencje</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;***&quot;</span>
         <span class="n">nalot_h</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">p</span><span class="o">.</span><span class="n">nalot_h</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">)</span>
         <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span><span class="n">fname</span><span class="p">,</span> <span class="n">lname</span><span class="p">,</span> <span class="n">lic</span><span class="p">,</span> <span class="n">nalot_h</span><span class="p">])</span>
 
@@ -271,10 +270,12 @@
 <span class="sd">        Generuje zestawienie wszystkich lotów obciążających konto użytkownika.</span>
 
 <span class="sd">        **Zastosowanie:**</span>
+
 <span class="sd">        Plik ten służy pilotom do weryfikacji poprawności naliczeń (np. czy lot</span>
 <span class="sd">        został policzony jako szkolny czy samodzielny) oraz jako podstawa do rozliczeń księgowych.</span>
 
 <span class="sd">        **Bezpieczeństwo:**</span>
+
 <span class="sd">        Zwykły pilot może pobrać TYLKO swoje operacje (`WHERE id_pilot = :p_id`).</span>
 <span class="sd">        Próba manipulacji ID w zapytaniu jest niemożliwa dzięki pobieraniu ID z bezpiecznej sesji (`current_user`).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -418,6 +419,7 @@
 <span class="sd">        Funkcja pomocnicza (Utility), która standaryzuje sposób wysyłania plików do przeglądarki.</span>
 
 <span class="sd">        **Szczegóły Techniczne:**</span>
+
 <span class="sd">        1.  **Kodowanie UTF-8-SIG:** Dodaje na początku pliku niewidoczny znak BOM (Byte Order Mark).</span>
 <span class="sd">            Jest to &quot;hack&quot; konieczny dla programu Microsoft Excel, aby poprawnie wyświetlał</span>
 <span class="sd">            polskie znaki (ą, ę, ś, ć). Bez tego Excel otwierałby pliki jako &quot;krzaczki&quot;.</span>

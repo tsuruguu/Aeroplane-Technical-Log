@@ -5,10 +5,11 @@ Generuje zestawienia finansowe, rankingi nalotów pilotów, statystyki szybowcó
 oraz umożliwia eksport tych danych do plików CSV.
 
 **System Logowania Audytowego (Data Privacy Audit)**
+
 Wszystkie operacje eksportu są traktowane jako zdarzenia wysokiego ryzyka i logowane
 do kanału `security` z uwzględnieniem filtrów RODO i IP sprawcy.
 
-Przykład logu eksportu finansowego (JSON):
+Przykład logu eksportu finansowego (JSON)::
 {
     "timestamp": "2026-01-11T20:45:12.123Z",
     "level": "INFO",
@@ -42,12 +43,14 @@ def dashboard():
         Prezentuje zagregowane dane, wykorzystując moc obliczeniową silnika bazy danych (PostgreSQL).
 
         **Optymalizacja Wydajności:**
+
         Zamiast pobierać tysiące rekordów lotów do Pythona i sumować je w pętli,
         funkcja korzysta z gotowych widoków SQL (`pdt_rpt...` i `pdt_core...`).
         Baza danych wykonuje agregacje (`SUM`, `COUNT`, `GROUP BY`) znacznie szybciej,
         a Python otrzymuje tylko gotowe wyniki do wyświetlenia.
 
         **Logika Finansowa:**
+
         Sekcja "Dłużnicy" i "Saldo" opiera się na widoku `v_rozliczenie_finansowe`, który
         dynamicznie wylicza koszt każdego lotu w oparciu o cennik szybowca, rodzaj startu
         oraz rolę pilota (np. podział kosztów 50/50 w locie koleżeńskim).
@@ -130,7 +133,9 @@ def export_piloci_csv():
         Generuje plik CSV z listą pilotów i ich wylatanymi godzinami.
 
         **Logika RODO (Data Masking):**
+
         Funkcja sprawdza rolę pobierającego:
+
         - **Admin:** Otrzymuje pełną listę z imionami i nazwiskami.
         - **Zwykły Użytkownik:** Otrzymuje listę, na której dane pilotów, którzy nie wyrazili
           zgody (`pokazywac_dane = false`), są zastąpione gwiazdkami (`***`).
@@ -181,10 +186,12 @@ def export_finanse_csv():
         Generuje zestawienie wszystkich lotów obciążających konto użytkownika.
 
         **Zastosowanie:**
+
         Plik ten służy pilotom do weryfikacji poprawności naliczeń (np. czy lot
         został policzony jako szkolny czy samodzielny) oraz jako podstawa do rozliczeń księgowych.
 
         **Bezpieczeństwo:**
+
         Zwykły pilot może pobrać TYLKO swoje operacje (`WHERE id_pilot = :p_id`).
         Próba manipulacji ID w zapytaniu jest niemożliwa dzięki pobieraniu ID z bezpiecznej sesji (`current_user`).
     """
@@ -319,6 +326,7 @@ def generate_csv_response(output, filename):
         Funkcja pomocnicza (Utility), która standaryzuje sposób wysyłania plików do przeglądarki.
 
         **Szczegóły Techniczne:**
+
         1.  **Kodowanie UTF-8-SIG:** Dodaje na początku pliku niewidoczny znak BOM (Byte Order Mark).
             Jest to "hack" konieczny dla programu Microsoft Excel, aby poprawnie wyświetlał
             polskie znaki (ą, ę, ś, ć). Bez tego Excel otwierałby pliki jako "krzaczki".

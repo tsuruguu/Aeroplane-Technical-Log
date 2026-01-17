@@ -40,16 +40,13 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Spis treści:</span></p>
+              <p class="caption" role="heading"><span class="caption-text">Logika Aplikacji (Python)</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../modules.html">Dokumentacja Techniczna PDT</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Architektura Danych (SQL)</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="../../database.html">Specyfikacja Techniczna Bazy Danych PDT</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#schemat-pdt-core-rdzen-operacyjny">Schemat pdt_core (Rdzeń Operacyjny)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#logika-biznesowa-i-automatyzacja-pdt-core">Logika Biznesowa i Automatyzacja (pdt_core)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#widoki-danych-pdt-core">Widoki Danych (pdt_core)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#schemat-pdt-auth-uwierzytelnianie-i-uprawnienia">Schemat pdt_auth (Uwierzytelnianie i Uprawnienia)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#schemat-pdt-rpt-warstwa-raportowa-i-finansowa">Schemat pdt_rpt (Warstwa Raportowa i Finansowa)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../database.html#analiza-normalizacji-i-zaleznosci-funkcyjnych">Analiza Normalizacji i Zależności Funkcyjnych</a></li>
 </ul>
 
         </div>
@@ -84,10 +81,11 @@
 <span class="sd">oraz ręczne korekty salda finansowego.</span>
 
 <span class="sd">**System Logowania Audytowego (Cybersecurity Standard)**</span>
+
 <span class="sd">Wszystkie akcje administracyjne są rejestrowane w kanałach `security` oraz `application`.</span>
 <span class="sd">Każdy wpis zawiera `src_ip` administratora oraz unikalny podpis HMAC-SHA256.</span>
 
-<span class="sd">Przykład logu korekty finansowej (JSON):</span>
+<span class="sd">Przykład logu korekty finansowej (JSON)::</span>
 <span class="sd">{</span>
 <span class="sd">    &quot;timestamp&quot;: &quot;2026-01-11T19:05:12.456Z&quot;,</span>
 <span class="sd">    &quot;level&quot;: &quot;INFO&quot;,</span>
@@ -120,16 +118,20 @@
 <span class="sd">        Raport agregujący metryki kont użytkowników.</span>
 
 <span class="sd">        Generuje tabelaryczny raport o użytkownikach, agregując dane z czterech różnych obszarów systemu:</span>
+
 <span class="sd">        1.  **Tożsamość Cyfrowa:** Login i rola systemowa (z `pdt_auth.uzytkownik`).</span>
 <span class="sd">        2.  **Tożsamość Osobowaa:** Imię, nazwisko, licencja (z `pdt_core.pilot`).</span>
 <span class="sd">        3.  **Finanse:** Aktualne saldo (z widoku `pdt_rpt.v_saldo_pilota`).</span>
 <span class="sd">        4.  **Operacje:** Suma wylatanych godzin (z widoku `pdt_core.v_pilot_nalot`).</span>
 
 <span class="sd">        **Techniczne aspekty zapytania SQL:**</span>
+
 <span class="sd">        Zastosowano `LEFT JOIN` do tabel powiązanych. Jest to krytyczne dla poprawności działania systemu,</span>
 <span class="sd">        ponieważ pozwala wyświetlić na liście również:</span>
+
 <span class="sd">        -   Konta techniczne (np. &#39;mechanik&#39;), które nie posiadają jeszcze profilu pilota.</span>
 <span class="sd">        -   Konta zablokowane (gdzie `deleted_at` nie jest NULL).</span>
+
 <span class="sd">        Gdyby użyto zwykłego `JOIN`, konta te zniknęłyby z listy, uniemożliwiając adminowi zarządzanie nimi.</span>
 
 <span class="sd">        Returns:</span>
@@ -185,27 +187,32 @@
 <span class="sd">        Kontroler zarządzania tożsamością i korekt finansowych.</span>
 
 <span class="sd">        *Wzorzec Action Dispatcher*</span>
+
 <span class="sd">            Rozróżnia akcje (save_data, korekta_salda, create_pilot_profile) na podstawie</span>
 <span class="sd">            wartości parametru &#39;action&#39; w żądaniu POST.</span>
 
 <span class="sd">        **Logika Biznesowa i Obsługiwane Akcje:**</span>
 
 <span class="sd">        1.  **&#39;save_data&#39; (Aktualizacja):**</span>
+
 <span class="sd">            -   Zmienia dane logowania i osobowe.</span>
 <span class="sd">            -   **Soft Delete:** Obsługuje przełącznik &quot;Konto Aktywne&quot;. Odznaczenie powoduje ustawienie</span>
 <span class="sd">                `deleted_at = NOW()`. Użytkownik nie może się zalogować, ale jego historia lotów</span>
 <span class="sd">                i operacji finansowych pozostaje nienaruszona (Integralność Referencyjna).</span>
 
 <span class="sd">        2.  **&#39;korekta_salda&#39; (Finanse):**</span>
+
 <span class="sd">            -   Umożliwia wprowadzanie korekt salda in-minus (obciążenia ręczne).</span>
 <span class="sd">            -   Wpisy w tabeli `wplata` z ujemną kwotą są dopuszczalne i agregowane</span>
 <span class="sd">            przez widoki salda jako operacje debetowe.</span>
 
 <span class="sd">        3.  **&#39;create_pilot_profile&#39; (Naprawa Danych):**</span>
+
 <span class="sd">            -   Dla kont technicznych (np. &#39;mechanik&#39;), które pierwotnie nie miały profilu osobowego,</span>
 <span class="sd">                funkcja tworzy pusty rekord w `pdt_core.pilot` i łączy go relacją 1:1.</span>
 
 <span class="sd">        **Audyt (Historia Operacji):**</span>
+
 <span class="sd">        Wyświetla historię finansową pobraną z widoku `pdt_rpt.v_historia_finansowa`. Widok ten</span>
 <span class="sd">        używa zaawansowanych funkcji okna SQL (`SUM(...) OVER(...)`) do dynamicznego wyliczania</span>
 <span class="sd">        salda &quot;krok po kroku&quot; po każdej operacji.</span>

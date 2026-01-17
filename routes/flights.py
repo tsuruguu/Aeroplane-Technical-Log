@@ -1,15 +1,14 @@
 """
 Moduł obsługi lotów (Flights) z pełnym audytem operacyjnym.
 
-Zarządza głównym dziennikiem lotów: wyświetlaniem listy, filtrowaniem,
-dodawaniem, edycją i usuwaniem (soft-delete) wpisów o lotach.
-Obsługuje również eksport danych do CSV.
+Zarządza głównym dziennikiem lotów: wyświetlaniem listy, filtrowaniem, dodawaniem, edycją i usuwaniem (soft-delete) wpisów o lotach. Obsługuje również eksport danych do CSV.
 
 **System Logowania Audytowego (Aviation Compliance)**
+
 Każda operacja na dzienniku lotów jest logowana w formacie strukturyzowanym JSON.
 Zmiany w nalotach i usterkach są traktowane jako zdarzenia krytyczne dla bezpieczeństwa operacji.
 
-Przykład logu dodania lotu (JSON):
+Przykład logu dodania lotu (JSON)::
 {
     "timestamp": "2026-01-11T19:45:00.123Z",
     "level": "INFO",
@@ -44,6 +43,7 @@ def get_filtered_query_parts(args, user):
         Dynamicznie konstruuje klauzulę WHERE oraz mapę parametrów dla silnika SQL.
 
         **Bezpieczeństwo**
+
         Implementuje wzorzec Query Builder w celu uniknięcia SQL Injection poprzez
         wymuszenie stosowania parametrów wiązanych (bind parameters).
         Krytycznym elementem jest sposób przekazywania wartości. Zamiast sklejać stringi (co grozi SQL Injection),
@@ -51,6 +51,7 @@ def get_filtered_query_parts(args, user):
         Silnik SQLAlchemy (korzystając z psycopg2) bezpiecznie "escapuje" te wartości przed wysłaniem do bazy.
 
         **Logika uprawnień (Row-Level Security emulation)**
+
         Dla użytkowników bez roli technicznej (admin/mechanik), zapytanie jest
         automatycznie rozszerzane o filtrację rekordów oznaczonych jako 'deleted',
         chyba że użytkownik jest właścicielem rekordu (p1 lub p2).
@@ -144,6 +145,7 @@ def index():
         reguł dostępu do danych osobowych (RODO/GDPR) oraz optymalizacji wydajności.
 
         **Proces przetwarzania**
+
         1. Agregacja uprawnień: Pobieranie list pilotów z uwzględnieniem flag RODO
            (pokazywac_dane) - filtruje dane na poziomie bazy, aby zminimalizować transfer.
         2. Paginacja: Wykorzystuje parametry LIMIT i OFFSET. Oblicza całkowitą liczbę
@@ -152,6 +154,7 @@ def index():
            dokonuje wstępnych złączeń (JOIN) na poziomie silnika DB.
 
         **Zarządzanie Prywatnością**
+
         Listy rozwijane (dropdowny) z nazwiskami pilotów są generowane dynamicznie w zależności od roli:
         - **Admin/Mechanik:** Widzą pełną listę wszystkich osób w systemie.
         - **Zwykły Pilot:** Widzi na liście tylko siebie oraz tych pilotów, którzy w swoim profilu
@@ -159,6 +162,7 @@ def index():
           Zapobiega to nieuprawnionemu profilowaniu innych członków aeroklubu.
 
         **Optymalizacja Wydajności (Server-Side Pagination):**
+
         Zamiast pobierać całą historię lotów (która może liczyć tysiące rekordów) do pamięci RAM,
         funkcja realizuje stronicowanie po stronie bazy danych (`LIMIT ... OFFSET ...`).
         Redukuje to obciążenie serwera i czas ładowania strony.
@@ -246,10 +250,12 @@ def export_csv():
         Umożliwia pobranie aktualnie przefiltrowanego widoku tabeli do formatu Excel-CSV.
 
         **Logika Bezpieczeństwa (Anonimizacja):**
+
         System stosuje dynamiczne maskowanie danych wrażliwych w czasie rzeczywistym.
         Nawet jeśli użytkownik pobierze plik, nie zobaczy w nim danych, do których nie ma uprawnień.
 
         Reguły widoczności (Row-Level Security w warstwie aplikacji):
+
         1.  Jeśli jesteś **Adminem/Mechanikiem** -> Widzisz wszystko.
         2.  Jeśli jesteś **członkiem załogi** danego lotu -> Widzisz pełne dane tego lotu (koszty, nazwiska).
         3.  W przeciwnym razie -> Nazwiska innych pilotów i kwoty finansowe są zastępowane ciągiem `***`.
@@ -330,20 +336,22 @@ def add_flight():
         danych operacyjnych i finansowych.
 
         **Walidacja**
+
             - Implementuje regułę bezpieczeństwa: Jeśli pilotem dowódcą (PIC) jest UCZEŃ, system
               wymaga, aby w kabinie był instruktor LUB aby wskazano instruktora nadzorującego z ziemi.
               Zapobiega to zapisaniu nielegalnych operacji lotniczych.
             - Przechwytuje błędy integralności i wyjątki rzucane przez triggery bazy danych
               (np. nakładanie się czasów lotu szybowca).
 
-
         **Przebieg transakcji (ACID)**
+
             1. INSERT do `pdt_core.lot` -> pobranie generowanego ID.
             2. Opcjonalny INSERT do `pdt_core.usterka` (relacja 1:1).
             3. Iteracyjny INSERT do `pdt_core.lot_pilot` dla wszystkich członków załogi.
             4. Commit transakcji lub Rollback w przypadku dowolnego błędu IO/Logic.
 
         **Obsługa Błędów Domenowych:**
+
         Blok `try-except` jest skonfigurowany tak, aby przechwytywać błędy logiczne rzucane
         przez triggery w bazie danych (np. `RAISE EXCEPTION` gdy czas lądowania jest przed startem)
         i wyświetlać je użytkownikowi w zrozumiałym języku.
@@ -430,17 +438,20 @@ def edit_flight(id_lot):
         dla spójności logów systemowych i powiązań z usterkami.
 
         **Bezpieczeństwo (Authorization Check):**
+
         Przed wykonaniem jakiejkolwiek akcji system weryfikuje własność rekordu.
         Edytować lot może tylko Administrator lub pilot biorący w nim udział (PIC/SIC).
         Próba edycji cudzego lotu przez zwykłego użytkownika kończy się blokadą.
 
         **Strategia Aktualizacji Danych (Delete-Insert Pattern):**
+
         Aktualizacja składu załogi (relacja wiele-do-wielu w tabeli `lot_pilot`) jest realizowana
         poprzez usunięcie wszystkich starych powiązań dla tego lotu i wstawienie nowych.
         Jest to podejście bardziej robustne (odporne na błędy) niż próbkowanie różnic (diffing),
         eliminując ryzyko pozostawienia "duchów" (nieaktualnych pilotów) w załodze.
 
         **Obsługa Usterek:**
+
         Funkcja inteligentnie zarządza powiązaną usterką:
         - Jeśli usterka już istniała -> Aktualizuje jej opis.
         - Jeśli nie istniała, a użytkownik ją dodał -> Tworzy nowy rekord w `pdt_core.usterka`.
@@ -560,9 +571,11 @@ def delete_flight(id_lot):
         ponieważ niszczy historię i audytowalność.
 
         **Mechanizm:**
+
         Zamiast usuwać rekord, funkcja ustawia kolumnę `deleted_at` na bieżący czas (`NOW()`).
 
         **Konsekwencje w systemie:**
+
         1.  **Widoki Raportowe:** Wszystkie widoki finansowe (`v_rozliczenie_finansowe`) i statystyczne
             mają warunek `WHERE deleted_at IS NULL`. Dzięki temu "usunięty" lot automatycznie przestaje
             być wliczany do salda pilota i nalotu szybowca.

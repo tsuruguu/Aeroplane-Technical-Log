@@ -3,43 +3,71 @@ Specyfikacja Techniczna Bazy Danych PDT
 
 Analiza Przepływu Danych (DFD)
 ------------------------------
-System został zaprojektowany w celu automatyzacji obiegu informacji w aeroklubie. Przepływ danych w systemie odbywa się według następującego schematu:
+Poniższy diagram przedstawia przepływ informacji pomiędzy użytkownikami a systemem PDT:
 
-1. **Wejście**: Użytkownik wprowadza dane operacyjne (logowanie lotu, zgłoszenie usterki, wpłata na konto) [cite: 114-123, 166].
-2. **Przetwarzanie i Walidacja**: Silnik PostgreSQL za pomocą wyzwalaczy sprawdza spójność logiczną (np. czy uczeń nie leci bez nadzoru, czy chronologia czasu jest poprawna) [cite: 114-121].
-3. **Przechowywanie**: Dane trafiają do znormalizowanych tabel w schematach ``pdt_core`` oraz ``pdt_auth``[cite: 71, 140].
-4. **Agregacja**: Widoki w schemacie ``pdt_rpt`` przeliczają dane surowe na informacje finansowe (koszty lotów, salda kroczące) [cite: 155-167].
-5. **Wyjście**: Prezentacja raportów operacyjnych i finansowych dla użytkownika końcowego [cite: 168-173].
+.. image:: diagram_dfd.png
+   :alt: Diagram DFD poziomu 1
+   :align: center
+
+Analiza przepływu danych w systemie PDT wykazuje ścisłą integrację procesów operacyjnych z warstwą walidacyjną, techniczną oraz finansową. Poniżej opisano szczegółową strukturę przepływu informacji w podziale na główne procesy logiczne poziomu 1 widoczne na diagramie DFD:
+
+**1.0 Uwierzytelnianie i Kontrola Dostępu**
+Proces ten stanowi bramę wejściową do systemu, determinując zakres dostępnych funkcjonalności.
+
+* **Wejście**: Dane logowania (unikalny login oraz hasło) przekazywane przez użytkownika.
+* **Przetwarzanie**: System weryfikuje poświadczenia w magazynie danych D1 (tabela ``uzytkownik``). Sprawdzane są aktywne uprawnienia oraz przypisane role systemowe (Pilot, Admin, Mechanik).
+* **Wynik**: Wygenerowanie bezpiecznego tokenu sesji oraz nadanie odpowiedniego kontekstu uprawnień wewnątrz aplikacji.
+
+**2.0 Zarządzanie Operacjami Lotniczymi**
+Jest to centralny proces systemu, w którym następuje transformacja danych wprowadzanych przez pilotów w audytowalne rekordy operacyjne.
+
+* **Wejście**: Kompletne dane lotu oraz skład załogi przesyłane przez formularz rejestracji operacji.
+* **Przetwarzanie**: To najbardziej krytyczny etap, w którym system sprawdza dostępność sprzętu oraz uruchamia wyzwalacze walidacyjne (triggers):
+    * **Walidacja czasu**: Blokada zapisów o nielogicznej chronologii (start po ladowaniu).
+    * **Bezpieczeństwo załogi**: Weryfikacja obecności instruktora lub nadzoru z ziemi dla uczniów-pilotów.
+    * **Hierarchia**: Wymuszanie obecności dowódcy (PIC) przy obecności drugiego członka załogi.
+* **Wynik**: Potwierdzony i trwały zapis operacji lotniczej w głównym dzienniku lotów.
+
+**3.0 Obsługa Techniczna i Serwisowa**
+Proces odpowiedzialny za ewidencję zdatności floty oraz dokumentowanie prac serwisowych.
+
+* **Wejście**: Zgłoszenia usterek technicznych od pilotów oraz raporty napraw generowane przez mechaników.
+* **Przetwarzanie**: System pobiera aktualną listę problemów z bazy danych, umożliwiając mechanikom ich edycję oraz zarządzanie cyklem życia usterki (statusy: otwarta, w toku, zamknięta).
+* **Wynik**: Aktualizacja stanu technicznego floty oraz kompletna dokumentacja wykonanych prac serwisowych.
+
+**4.0 Generowanie Analiz i Rozliczeń**
+Końcowy proces agregacji, w którym dane operacyjne są przeliczane na informacje finansowe i statystyczne.
+
+* **Dane**: Pobieranie archiwalnych danych nalotowych, stawek godzinowych za sprzęt oraz kosztów startów z bazy danych.
+* **Przetwarzanie**: Wykorzystanie warstwy widoków raportowych (schemat ``pdt_rpt``) do automatycznego obliczania nalotu pilotów oraz podziału kosztów operacji lotniczych.
+* **Wynik**: Generowanie spersonalizowanych dzienników lotów, zestawień sald członkowskich oraz zbiorczych raportów finansowych dla administratorów.
 
 Diagram Relacji (ERD)
 ---------------------
 Poniższy diagram przedstawia logiczną strukturę bazy danych, relacje między encjami oraz klucze główne i obce.
 
-.. image:: er_diagram.png
+.. image:: diagram_erd.png
    :alt: Diagram ERD bazy danych PDT
    :align: center
 
-.. note::
-   Diagram należy wygenerować w narzędziu (np. pgAdmin lub DBeaver) i zapisać jako plik ``er_diagram.png`` w folderze ``docs/``.
-
 Schemat pdt_core (Rdzeń Operacyjny)
-===================================
+-----------------------------------
 
-Schemat ``pdt_core`` zawiera wszystkie tabele odpowiedzialne za procesy operacyjne: ewidencję floty, pilotów, logowanie lotów oraz obsługę techniczną statków powietrznych.
+Schemat ``pdt_core`` zawiera wszystkie tabele odpowiedzialne za procesy operacyjne: ewidencję floty, pilotów, logowanie lotów oraz obsługę techniczną.
 
 Słownik Danych i Ograniczenia
------------------------------
-W systemie zdefiniowano dziedziny danych (typy ENUM), które ograniczają dopuszczalne wartości dla kluczowych kolumn statusowych[cite: 90, 97, 101, 142]:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+W systemie zdefiniowano dziedziny danych (typy ENUM), które ograniczają dopuszczalne wartości:
 
 * **pdt_core.status_usterki**:
-    * ``otwarta``: Usterka zgłoszona, oczekuje na weryfikację przez mechanika[cite: 101].
-    * ``w_toku``: Prace serwisowe są w trakcie realizacji[cite: 101].
-    * ``zamknieta``: Usterka usunięta, szybowiec dopuszczony do lotu[cite: 101].
-* **pdt_core.rola_w_locie**: Określa funkcję załogi: ``PIC`` (Dowódca), ``SIC`` (Drugi pilot), ``UCZEN``, ``INSTRUKTOR``, ``PASAZER``[cite: 97].
-* **pdt_auth.rola_uzytkownika**: Poziomy dostępu: ``admin`` (pełny), ``pilot`` (operacyjny), ``mechanik`` (techniczny) [cite: 142-144].
+    * ``otwarta``: Usterka zgłoszona, oczekuje na weryfikację przez mechanika[c.
+    * ``w_toku``: Prace serwisowe są w trakcie realizacji.
+    * ``zamknieta``: Usterka usunięta, szybowiec dopuszczony do lotu.
+* **pdt_core.rola_w_locie**: Określa funkcję załogi: ``PIC`` (Dowódca), ``SIC`` (Drugi pilot), ``UCZEN``, ``INSTRUKTOR``, ``PASAZER``.
+* **pdt_auth.rola_uzytkownika**: Poziomy dostępu: ``admin`` (pełny), ``pilot`` (operacyjny), ``mechanik`` (techniczny) .
 
 Tabela: szybowiec
------------------
+~~~~~~~~~~~~~~~~~
 
 Przechowuje informacje o flocie szybowców dostępnych w organizacji.
 
@@ -70,7 +98,7 @@ Przechowuje informacje o flocie szybowców dostępnych w organizacji.
      - Data usunięcia (Soft Delete).
 
 Tabela: pilot
--------------
+~~~~~~~~~~~~~
 
 Ewidencja osób uprawnionych do wykonywania lotów.
 
@@ -101,7 +129,7 @@ Ewidencja osób uprawnionych do wykonywania lotów.
      - Zgoda na wyświetlanie danych osobowych w raportach publicznych.
 
 Tabela: lot
------------
+~~~~~~~~~~~
 
 Główny rejestr operacji lotniczych. Tabela ta posiada wbudowaną logikę walidacji czasu.
 
@@ -144,7 +172,7 @@ Główny rejestr operacji lotniczych. Tabela ta posiada wbudowaną logikę walid
      - Status rozliczenia lotu.
 
 Tabela: lot_pilot
------------------
+~~~~~~~~~~~~~~~~~
 
 Tabela asocjacyjna definiująca załogę konkretnego lotu.
 
@@ -166,7 +194,7 @@ Tabela asocjacyjna definiująca załogę konkretnego lotu.
      - Funkcja w kabinie: 'PIC', 'SIC', 'UCZEN', 'INSTRUKTOR', 'PASAZER'.
 
 Tabela: usterka
----------------
+~~~~~~~~~~~~~~~
 
 Rejestr problemów technicznych zgłaszanych po lotach.
 
@@ -191,7 +219,7 @@ Rejestr problemów technicznych zgłaszanych po lotach.
      - Stan zgłoszenia: 'otwarta', 'w_toku', 'zamknieta'.
 
 Tabela: naprawa
----------------
+~~~~~~~~~~~~~~~
 
 Dokumentacja prac serwisowych wykonanych przez mechaników.
 
@@ -216,7 +244,7 @@ Dokumentacja prac serwisowych wykonanych przez mechaników.
      - Opis wykonanych czynności naprawczych.
 
 Tabela: przeglad
-----------------
+~~~~~~~~~~~~~~~~
 
 Harmonogram okresowych przeglądów technicznych (np. 50h, roczny).
 
@@ -238,7 +266,7 @@ Harmonogram okresowych przeglądów technicznych (np. 50h, roczny).
      - Rodzaj przeglądu (np. 'Roczny', '50-godzinny').
 
 Tabela: wplata
---------------
+~~~~~~~~~~~~~~
 
 Ewidencja wpłat na subkonta pilotów.
 
@@ -263,12 +291,12 @@ Ewidencja wpłat na subkonta pilotów.
      - Tytuł przelewu/wpłaty.
 
 Logika Biznesowa i Automatyzacja (pdt_core)
-===========================================
+-------------------------------------------
 
 System PDT wykorzystuje wyzwalacze (triggers) oraz funkcje proceduralne (PL/pgSQL) do zapewnienia integralności danych i wymuszenia przestrzegania procedur lotniczych.
 
 Funkcje Walidacyjne
--------------------
+~~~~~~~~~~~~~~~~~~~
 
 **1. Walidacja Bezpieczeństwa Ucznia (trg_validate_student_safety)**
 Funkcja ta jest kluczowym elementem systemu bezpieczeństwa. Monitoruje przypisania pilotów do lotów i reaguje w przypadku wykrycia roli 'UCZEN'.
@@ -294,7 +322,7 @@ Funkcja pomocnicza utrzymująca spójność metadanych.
 * **Mechanizm działania**: Przy każdej edycji rekordu w tabelach operacyjnych, automatycznie ustawia kolumnę ``updated_at`` na aktualny czas systemowy (``NOW()``).
 
 Wyzwalacze (Triggers)
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 Poniższa tabela przedstawia powiązanie powyższych funkcji z konkretnymi tabelami i zdarzeniami:
 
@@ -325,12 +353,12 @@ Poniższa tabela przedstawia powiązanie powyższych funkcji z konkretnymi tabel
      - ``update_updated_at_column()`` (BEFORE UPDATE)
 
 Widoki Danych (pdt_core)
-========================
+------------------------
 
 Widoki w schemacie ``pdt_core`` służą do uproszczenia zapytań aplikacyjnych poprzez ukrycie złożonych złączeń (JOIN) oraz automatyczne filtrowanie rekordów aktywnych.
 
 Widoki Aktywnych Zasobów
-------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Te widoki automatycznie odfiltrowują rekordy, które zostały oznaczone jako usunięte (kolumna ``deleted_at IS NULL``).
 
@@ -338,7 +366,7 @@ Te widoki automatycznie odfiltrowują rekordy, które zostały oznaczone jako us
 * **v_aktywne_szybowce**: Zwraca listę dostępnych szybowców, gotowych do planowania operacji.
 
 Widoki Diagnostyczne i Techniczne
----------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **v_do_naprawy**
 Widok dla mechaników, agregujący informacje o usterkach wymagających interwencji.
@@ -350,6 +378,7 @@ Widok dla mechaników, agregujący informacje o usterkach wymagających interwen
 Widok podsumowujący stan techniczny konkretnych operacji lotniczych.
 * **Logika**: Grupuje usterki po identyfikatorze lotu (``id_lot``).
 * **Kolumny specjalne**:
+
     * ``ma_usterke``: Zwraca 'TAK' lub 'NIE'.
     * ``opis_usterek``: Agreguje opisy wielu usterek w jeden ciąg znaków (rozdzielony znakiem " | ") przy użyciu funkcji ``string_agg``.
 
@@ -359,7 +388,7 @@ Kompleksowy widok przedstawiający aktualną "metrykę" statku powietrznego.
 * **Zastosowanie**: Szybki podgląd zdatności do lotu.
 
 Widoki Statystyczne (Naloty)
-----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **v_pilot_nalot**
 Oblicza całkowity czas spędzony w powietrzu przez każdego pilota.
@@ -371,19 +400,19 @@ Oblicza całkowity nalot (tzw. "resurs") każdego szybowca.
 * **Logika**: Sumuje czas trwania wszystkich nieusuniętych lotów przypisanych do danej jednostki (``id_szybowiec``).
 
 Widoki Przeglądów
------------------
+~~~~~~~~~~~~~~~~~
 
 **v_szybowiec_ostatni_przeglad**
 Wyszukuje wyłącznie najświeższą datę przeglądu dla każdego szybowca.
 * **Technologia**: Wykorzystuje konstrukcję ``DISTINCT ON (id_szybowiec)`` z sortowaniem malejącym po dacie, co gwarantuje pobranie tylko jednego, najnowszego rekordu dla każdej jednostki.
 
 Schemat pdt_auth (Uwierzytelnianie i Uprawnienia)
-=================================================
+-------------------------------------------------
 
 Schemat ``pdt_auth`` zarządza dostępem do systemu. Przechowuje dane kont użytkowników, zahaszowane hasła oraz definiuje role, które determinują zakres dostępnych funkcjonalności.
 
 Typy Wyliczeniowe (Custom ENUMs)
---------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 W celu zapewnienia ścisłej kontroli uprawnień zdefiniowano własny typ danych:
 
@@ -393,7 +422,7 @@ W celu zapewnienia ścisłej kontroli uprawnień zdefiniowano własny typ danych
     * ``mechanik``: Dostęp do modułów serwisowych, usterek i przeglądów.
 
 Tabela: uzytkownik
-------------------
+~~~~~~~~~~~~~~~~~~
 
 Główna tabela przechowująca dane dostępowe. Każdy rekord reprezentuje pojedyncze konto z przypisaną rolą.
 
@@ -423,7 +452,7 @@ Główna tabela przechowująca dane dostępowe. Każdy rekord reprezentuje pojed
 
 
 Więzy Integralności i Logika (Constraints)
-------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Baza danych na poziomie schematu wymusza poprawność relacji między kontem a profilem pilota:
 
@@ -438,12 +467,12 @@ Baza danych na poziomie schematu wymusza poprawność relacji między kontem a p
 
 
 Schemat pdt_rpt (Warstwa Raportowa i Finansowa)
-===============================================
+-----------------------------------------------
 
 Schemat ``pdt_rpt`` stanowi warstwę abstrakcji nad danymi surowymi. Zawiera logikę biznesową dotyczącą naliczania opłat, rozliczeń między pilotami oraz generowania zestawień statystycznych.
 
 Widoki Finansowe i Kalkulacyjne
--------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **v_koszt_lotu**
 Dynamicznie oblicza całkowity koszt operacji lotniczej.
@@ -483,7 +512,7 @@ Podsumowanie aktualnego stanu finansowego wszystkich aktywnych pilotów.
 * **Kolumny**: Suma wszystkich wpłat, suma wszystkich kosztów oraz końcowe saldo (suma wpłat - suma kosztów).
 
 Dzienniki i Raporty Operacyjne
-------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **v_dziennik_lotow**
 Kompleksowe zestawienie wszystkich danych o locie w jednym widoku.
@@ -507,15 +536,15 @@ Raport o gotowości floty.
 * **Logika**: Zlicza liczbę aktywnych (niezamkniętych) usterek dla każdego znaku rejestracyjnego.
 
 Analiza Normalizacji i Zależności Funkcyjnych
-=============================================
+---------------------------------------------
 
-Struktura bazy danych została poddana procesowi dekompozycji w celu osiągnięcia **Trzeciej Postaci Normalnej (3NF)**[cite: 18, 22]:
+Struktura bazy danych została poddana procesowi dekompozycji w celu osiągnięcia **Trzeciej Postaci Normalnej (3NF)**:
 
-1. **Pierwsza Postać Normalna (1NF)**: Wszystkie atrybuty w tabelach są atomowe (np. rozdzielenie imienia i nazwiska pilota, brak list wartości w jednej komórce) [cite: 79-80].
-2. **Druga Postać Normalna (2NF)**: Wszystkie kolumny niekluczowe są w pełni zależne funkcyjnie od całego klucza głównego. W tabeli asocjacyjnej ``lot_pilot`` rola jest zależna od pary (id_lot, id_pilot) [cite: 95-97].
-3. **Trzecia Postać Normalna (3NF)**: Wyeliminowano zależności przechodnie. Dane o szybowcu (znak rejestracyjny, typ) nie są powielane w tabeli lotów – lot przechowuje jedynie klucz obcy ``id_szybowiec``[cite: 86].
+1. **Pierwsza Postać Normalna (1NF)**: Wszystkie atrybuty w tabelach są atomowe (np. rozdzielenie imienia i nazwiska pilota, brak list wartości w jednej komórce) .
+2. **Druga Postać Normalna (2NF)**: Wszystkie kolumny niekluczowe są w pełni zależne funkcyjnie od całego klucza głównego. W tabeli asocjacyjnej ``lot_pilot`` rola jest zależna od pary (id_lot, id_pilot).
+3. **Trzecia Postać Normalna (3NF)**: Wyeliminowano zależności przechodnie. Dane o szybowcu (znak rejestracyjny, typ) nie są powielane w tabeli lotów – lot przechowuje jedynie klucz obcy ``id_szybowiec``.
 
 **Eliminacja relacji wiele-do-wielu (n-m)**:
-Relacja między Pilotami a Lotami została rozwiązana za pomocą tabeli łączącej ``lot_pilot``, co pozwala na przypisanie wielu osób do jednego lotu (np. uczeń i instruktor) oraz wielu lotów do jednego pilota [cite: 12, 95-97, 161-164].
+Relacja między Pilotami a Lotami została rozwiązana za pomocą tabeli łączącej ``lot_pilot``, co pozwala na przypisanie wielu osób do jednego lotu (np. uczeń i instruktor) oraz wielu lotów do jednego pilota.
 
 

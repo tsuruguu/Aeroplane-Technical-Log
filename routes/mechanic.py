@@ -5,10 +5,11 @@ Obsługuje Panel Techniczny: statusy resursów szybowców, zgłaszanie i obsług
 dodawanie przeglądów okresowych oraz dokumentację zdjęciową napraw.
 
 **System Logowania Audytowego (Maintenance & Safety Audit)**
+
 Logi w tym module dokumentują krytyczne zmiany w statusie zdatności floty.
 Szczególny nacisk położono na audyt przesyłania plików oraz resetowanie liczników przeglądów.
 
-Przykład logu obsługi technicznej (JSON):
+Przykład logu obsługi technicznej (JSON)::
 {
     "timestamp": "2026-01-11T20:15:30.987Z",
     "level": "WARNING",
@@ -48,10 +49,12 @@ def allowed_file(filename):
         Jest to kluczowa linia obrony przed atakami typu **RCE (Remote Code Execution)**.
 
         **Zagrożenie:**
+
         Bez tej weryfikacji atakujący mógłby przesłać skrypt wykonywalny (np. ``malware.php``, ``script.py``, ``cmd.exe``)
         zamiast zdjęcia. Jeśli serwer pozwoliłby na jego wykonanie, haker przejąłby kontrolę nad systemem.
 
         **Mechanizm:**
+
         1. Sprawdza obecność kropki w nazwie.
         2. Pobiera rozszerzenie (ostatni element po kropce).
         3. Konwertuje na małe litery i sprawdza obecność na białej liście (whitelist).
@@ -75,6 +78,7 @@ def index():
         wgląd w stan zdatności floty.
 
         **Algorytm Obliczania Resursów (TTSN / TSO):**
+
         Dla każdego szybowca system wykonuje analizę w czasie rzeczywistym:
         1. Pobiera stan nalotu całkowitego z widoku zmaterializowanego/widoku raportowego.
         2. Identyfikuje datę ostatniego przeglądu okresowego typu '500h' lub 'Annual'.
@@ -169,6 +173,7 @@ def glider_details(id_szybowiec):
         Agreguje pełną historię eksploatacyjną konkretnego statku powietrznego.
 
         **Agregacja Danych:**
+
         Widok łączy dane z trzech niezależnych źródeł w jedną spójną kartę:
         1.  `pdt_core.v_szybowiec_nalot`: Pobiera sumaryczny czas lotu (Total Time Since New).
         2.  `pdt_core.przeglad`: Historię obsługi technicznej (kto i kiedy wykonał przegląd).
@@ -230,6 +235,7 @@ def export_fleet_csv():
         lub dla zarządu aeroklubu w celu planowania budżetu na remonty.
 
         **Zawartość Raportu:**
+
         - Znaki rejestracyjne i typ.
         - Całkowity nalot (TTSN).
         - Data i rodzaj ostatniego przeglądu (np. ARC, 50h, 500h).
@@ -378,11 +384,13 @@ def details(id_usterka):
         Zarządza pełnym procesem obsługi zgłoszenia: od otwarcia, przez diagnostykę, aż do zamknięcia.
 
         **Śledzenie Zmian (Audit Log):**
+
         Każda interwencja mechanika (dodanie opisu, wymiana części) jest rejestrowana w tabeli
         `pdt_core.naprawa` z sygnaturą czasową i ID użytkownika. Pozwala to odtworzyć
         historię naprawy w przypadku późniejszych problemów (np. w dochodzeniu powypadkowym).
 
         **Dokumentacja Cyfrowa:**
+
         Obsługuje bezpieczny upload zdjęć dowodowych. Pliki otrzymują losowe nazwy UUID,
         aby zapobiec nadpisywaniu plików oraz atakom typu Path Traversal lub wykonywaniu złośliwych skryptów.
     """
@@ -516,11 +524,13 @@ def add_inspection():
         Jest to krytyczna operacja systemowa, która wpływa na obliczanie resursów.
 
         **Logika Biznesowa (Reset Liczników):**
+
         Wprowadzenie nowego przeglądu do bazy danych (`INSERT INTO pdt_core.przeglad`)
         powoduje, że algorytm w `mechanic.index` zacznie liczyć godziny "od przeglądu"
         od nowej daty. Innymi słowy – funkcja ta "zeruje licznik" do następnego przeglądu okresowego.
 
         **Wymagania:**
+
         Dostępna tylko dla ról technicznych (`admin`, `mechanik`), ponieważ błędny wpis
         może doprowadzić do przekroczenia resursu i utraty ubezpieczenia statku.
     """

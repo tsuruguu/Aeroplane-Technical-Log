@@ -5,10 +5,11 @@ Zarządzanie użytkownikami, edycja danych osobowych, ról systemowych
 oraz ręczne korekty salda finansowego.
 
 **System Logowania Audytowego (Cybersecurity Standard)**
+
 Wszystkie akcje administracyjne są rejestrowane w kanałach `security` oraz `application`.
 Każdy wpis zawiera `src_ip` administratora oraz unikalny podpis HMAC-SHA256.
 
-Przykład logu korekty finansowej (JSON):
+Przykład logu korekty finansowej (JSON)::
 {
     "timestamp": "2026-01-11T19:05:12.456Z",
     "level": "INFO",
@@ -39,16 +40,20 @@ def users_list():
         Raport agregujący metryki kont użytkowników.
 
         Generuje tabelaryczny raport o użytkownikach, agregując dane z czterech różnych obszarów systemu:
+
         1.  **Tożsamość Cyfrowa:** Login i rola systemowa (z `pdt_auth.uzytkownik`).
         2.  **Tożsamość Osobowaa:** Imię, nazwisko, licencja (z `pdt_core.pilot`).
         3.  **Finanse:** Aktualne saldo (z widoku `pdt_rpt.v_saldo_pilota`).
         4.  **Operacje:** Suma wylatanych godzin (z widoku `pdt_core.v_pilot_nalot`).
 
         **Techniczne aspekty zapytania SQL:**
+
         Zastosowano `LEFT JOIN` do tabel powiązanych. Jest to krytyczne dla poprawności działania systemu,
         ponieważ pozwala wyświetlić na liście również:
+
         -   Konta techniczne (np. 'mechanik'), które nie posiadają jeszcze profilu pilota.
         -   Konta zablokowane (gdzie `deleted_at` nie jest NULL).
+
         Gdyby użyto zwykłego `JOIN`, konta te zniknęłyby z listy, uniemożliwiając adminowi zarządzanie nimi.
 
         Returns:
@@ -101,27 +106,32 @@ def user_edit(id_user):
         Kontroler zarządzania tożsamością i korekt finansowych.
 
         *Wzorzec Action Dispatcher*
+
             Rozróżnia akcje (save_data, korekta_salda, create_pilot_profile) na podstawie
             wartości parametru 'action' w żądaniu POST.
 
         **Logika Biznesowa i Obsługiwane Akcje:**
 
         1.  **'save_data' (Aktualizacja):**
+
             -   Zmienia dane logowania i osobowe.
             -   **Soft Delete:** Obsługuje przełącznik "Konto Aktywne". Odznaczenie powoduje ustawienie
                 `deleted_at = NOW()`. Użytkownik nie może się zalogować, ale jego historia lotów
                 i operacji finansowych pozostaje nienaruszona (Integralność Referencyjna).
 
         2.  **'korekta_salda' (Finanse):**
+
             -   Umożliwia wprowadzanie korekt salda in-minus (obciążenia ręczne).
             -   Wpisy w tabeli `wplata` z ujemną kwotą są dopuszczalne i agregowane
             przez widoki salda jako operacje debetowe.
 
         3.  **'create_pilot_profile' (Naprawa Danych):**
+
             -   Dla kont technicznych (np. 'mechanik'), które pierwotnie nie miały profilu osobowego,
                 funkcja tworzy pusty rekord w `pdt_core.pilot` i łączy go relacją 1:1.
 
         **Audyt (Historia Operacji):**
+
         Wyświetla historię finansową pobraną z widoku `pdt_rpt.v_historia_finansowa`. Widok ten
         używa zaawansowanych funkcji okna SQL (`SUM(...) OVER(...)`) do dynamicznego wyliczania
         salda "krok po kroku" po każdej operacji.

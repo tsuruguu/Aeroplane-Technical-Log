@@ -137,18 +137,18 @@
                             <select name="filter_start" class="form-select form-select-sm">
                                 <option value="">-- Wszystkie --</option>
                                 {% for l in all_airports %}
-                                    <option value="{{ l.id_lotnisko }}" {% if args.get('filter_start')|int == l.id_lotnisko %}selected{% endif %}>
+                                    <option value="{{ l.kod }}" {% if args.get('filter_start') == l.kod %}selected{% endif %}>
                                         {{ l.nazwa }} ({{ l.kod }})
                                     </option>
                                 {% endfor %}
                             </select>
                         </div>
-                         <div class="col-md-3">
+                        <div class="col-md-3">
                             <label class="form-label">Lotnisko Lądowania</label>
                             <select name="filter_ladowanie" class="form-select form-select-sm">
                                 <option value="">-- Wszystkie --</option>
                                 {% for l in all_airports %}
-                                    <option value="{{ l.id_lotnisko }}" {% if args.get('filter_ladowanie')|int == l.id_lotnisko %}selected{% endif %}>
+                                    <option value="{{ l.kod }}" {% if args.get('filter_ladowanie') == l.kod %}selected{% endif %}>
                                         {{ l.nazwa }} ({{ l.kod }})
                                     </option>
                                 {% endfor %}

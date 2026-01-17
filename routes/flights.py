@@ -103,12 +103,12 @@ def get_filtered_query_parts(args, user):
     start = args.get('filter_start')
     if start and start.strip():
         clauses.append("kod_startu = :fstart")
-        params['fstart'] = int(start)
+        params['fstart'] = start.strip()
 
     ladowanie = args.get('filter_ladowanie')
     if ladowanie and ladowanie.strip():
         clauses.append("kod_ladowania = :flad")
-        params['flad'] = int(ladowanie)
+        params['flad'] = ladowanie.strip()
 
     data_lotu = args.get('filter_data')
     if data_lotu and data_lotu.strip():

@@ -65,31 +65,24 @@ def dashboard():
                           ORDER BY nalot_h DESC
                           """)
     else:
-        sql_piloci = text("""
-                          SELECT *
-                          FROM pdt_core.v_pilot_nalot
-                          ORDER BY nalot_h DESC
-                          """)
+        sql_piloci = text("SELECT * FROM pdt_core.v_pilot_nalot ORDER BY nalot_h DESC")
 
     piloci_raw = db.session.execute(sql_piloci).fetchall()
+
+    # Przetwarzanie na słowniki (Logika: Marta widzi Martę)
     piloci = []
     for p in piloci_raw:
         p_dict = dict(p._mapping)
-
         if p_dict.get('id_pilot') == current_user.id_pilot:
             p_dict['pokazywac_dane'] = True
             p_dict['pokazywac_licencje'] = True
-
         piloci.append(p_dict)
 
-    my_stats = {
-        'rank': '-',
-        'hours': 0.0
-    }
+    my_stats = {'rank': '-', 'hours': 0.0}
     for index, p in enumerate(piloci):
-        if p.id_pilot == current_user.id_pilot:
+        if p.get('id_pilot') == current_user.id_pilot:
             my_stats['rank'] = index + 1
-            my_stats['hours'] = p.nalot_h
+            my_stats['hours'] = p.get('nalot_h', 0.0)
             break
 
     szybowce = db.session.execute(
@@ -121,16 +114,11 @@ def dashboard():
 
     dluznicy = db.session.execute(sql_finanse, query_params).fetchall()
     sumy_dlugow = db.session.execute(sql_sumy, query_params).fetchall()
-
     total_cost_sum = sum(row.kwota_do_zaplaty for row in dluznicy)
 
     return render_template('reports_dashboard.html',
-                           piloci=piloci,
-                           szybowce=szybowce,
-                           dluznicy=dluznicy,
-                           sumy_dlugow=sumy_dlugow,
-                           my_stats=my_stats,
-                           total_cost_sum=total_cost_sum)
+                           piloci=piloci, szybowce=szybowce, dluznicy=dluznicy,
+                           sumy_dlugow=sumy_dlugow, my_stats=my_stats, total_cost_sum=total_cost_sum)
 
 
 @reports_bp.route('/raporty/export/piloci')

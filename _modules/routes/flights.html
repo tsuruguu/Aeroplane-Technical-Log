@@ -368,10 +368,10 @@
 
     <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span>
         <span class="s1">&#39;ID&#39;</span><span class="p">,</span> <span class="s1">&#39;Data&#39;</span><span class="p">,</span> <span class="s1">&#39;Znak Rej.&#39;</span><span class="p">,</span> <span class="s1">&#39;Model&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;Pilot 1&#39;</span><span class="p">,</span> <span class="s1">&#39;Pilot 2&#39;</span><span class="p">,</span> <span class="s1">&#39;Rodzaj Startu&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;Pilot 1&#39;</span><span class="p">,</span><span class="s1">&#39;Licencja PIC&#39;</span><span class="p">,</span> <span class="s1">&#39;Pilot 2&#39;</span><span class="p">,</span> <span class="s1">&#39;Licencja SIC&#39;</span> <span class="p">,</span> <span class="s1">&#39;Rodzaj Startu&#39;</span><span class="p">,</span>
         <span class="s1">&#39;Lotnisko Start&#39;</span><span class="p">,</span> <span class="s1">&#39;Lotnisko Ląd&#39;</span><span class="p">,</span>
         <span class="s1">&#39;Start&#39;</span><span class="p">,</span> <span class="s1">&#39;Lądowanie&#39;</span><span class="p">,</span> <span class="s1">&#39;Nalot (h)&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;Koszt (PLN)&#39;</span><span class="p">,</span> <span class="s1">&#39;Usterka&#39;</span>
+        <span class="s1">&#39;Koszt (PLN)&#39;</span><span class="p">,</span> <span class="s1">&#39;Usterka&#39;</span><span class="p">,</span> <span class="s1">&#39;Uwagi&#39;</span>
     <span class="p">])</span>
 
     <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">result</span><span class="p">:</span>
@@ -382,6 +382,11 @@
         <span class="k">if</span> <span class="n">row</span><span class="o">.</span><span class="n">pilot_2</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span><span class="n">is_priv</span> <span class="ow">or</span> <span class="n">row</span><span class="o">.</span><span class="n">id_p2</span> <span class="o">==</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">):</span>
             <span class="n">p2</span> <span class="o">=</span> <span class="s2">&quot;***&quot;</span>
 
+        <span class="n">lic1</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">licencja_p1</span> <span class="k">if</span> <span class="p">(</span><span class="n">is_priv</span> <span class="ow">or</span> <span class="n">row</span><span class="o">.</span><span class="n">id_p1</span> <span class="o">==</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;***&quot;</span>
+        <span class="n">lic2</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">licencja_p2</span> <span class="k">if</span> <span class="n">row</span><span class="o">.</span><span class="n">pilot_2</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">row</span><span class="o">.</span><span class="n">licencja_p2</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span><span class="n">is_priv</span> <span class="ow">or</span> <span class="n">row</span><span class="o">.</span><span class="n">id_p2</span> <span class="o">==</span> <span class="n">current_user</span><span class="o">.</span><span class="n">id_pilot</span><span class="p">):</span>
+            <span class="n">p2</span> <span class="o">=</span> <span class="s2">&quot;***&quot;</span>
+
         <span class="n">koszt</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">row</span><span class="o">.</span><span class="n">koszt_calkowity</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">is_priv</span> <span class="k">else</span> <span class="s2">&quot;***&quot;</span>
 
         <span class="n">writer</span><span class="o">.</span><span class="n">writerow</span><span class="p">([</span>
@@ -390,7 +395,9 @@
             <span class="n">row</span><span class="o">.</span><span class="n">znak_rej</span><span class="p">,</span>
             <span class="n">row</span><span class="o">.</span><span class="n">typ</span><span class="p">,</span>
             <span class="n">p1</span><span class="p">,</span>
+            <span class="n">lic1</span><span class="p">,</span>
             <span class="n">p2</span><span class="p">,</span>
+            <span class="n">lic2</span><span class="p">,</span>
             <span class="n">row</span><span class="o">.</span><span class="n">rodzaj_startu</span><span class="p">,</span>
             <span class="n">row</span><span class="o">.</span><span class="n">kod_startu</span><span class="p">,</span>
             <span class="n">row</span><span class="o">.</span><span class="n">kod_ladowania</span><span class="p">,</span>
@@ -398,7 +405,9 @@
             <span class="n">row</span><span class="o">.</span><span class="n">dt_ladowanie</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%H:%M&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">row</span><span class="o">.</span><span class="n">dt_ladowanie</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
             <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">row</span><span class="o">.</span><span class="n">czas_h</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">),</span>
             <span class="n">koszt</span><span class="p">,</span>
-            <span class="n">row</span><span class="o">.</span><span class="n">ma_usterke</span>
+            <span class="n">row</span><span class="o">.</span><span class="n">ma_usterke</span><span class="p">,</span>
+            <span class="n">row</span><span class="o">.</span><span class="n">uwagi</span>
+
         <span class="p">])</span>
 
     <span class="n">output</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
@@ -464,8 +473,8 @@
 
         <span class="k">try</span><span class="p">:</span>
             <span class="n">res</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
-<span class="s2">                                          INSERT INTO pdt_core.lot (id_szybowiec, dt_start, dt_ladowanie, kod_startu,</span>
-<span class="s2">                                                                    kod_ladowania, rodzaj_startu, uwagi, id_nadzorujacy)</span>
+<span class="s2">                                          INSERT INTO pdt_core.lot (id_szybowiec, dt_start, dt_ladowanie, id_start,</span>
+<span class="s2">                                                                    id_ladowanie, rodzaj_startu, uwagi, id_nadzorujacy)</span>
 <span class="s2">                                          VALUES (:s_id, :d_s, :d_l, :i_s, :i_l, :r_s, :uw, :nadzor)</span>
 <span class="s2">                                          RETURNING id_lot</span>
 <span class="s2">                                          &quot;&quot;&quot;</span><span class="p">),</span> <span class="p">{</span>
@@ -596,8 +605,8 @@
 <span class="s2">                                    SET id_szybowiec=:s_id,</span>
 <span class="s2">                                        dt_start=:d_s,</span>
 <span class="s2">                                        dt_ladowanie=:d_l,</span>
-<span class="s2">                                        kod_startu=:i_s,</span>
-<span class="s2">                                        kod_ladowania=:i_l,</span>
+<span class="s2">                                        id_start=:i_s,</span>
+<span class="s2">                                        id_ladowanie=:i_l,</span>
 <span class="s2">                                        rodzaj_startu=:r_s,</span>
 <span class="s2">                                        uwagi=:uw,</span>
 <span class="s2">                                        id_nadzorujacy=:nadzor</span>

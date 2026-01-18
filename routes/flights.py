@@ -284,10 +284,10 @@ def export_csv():
 
     writer.writerow([
         'ID', 'Data', 'Znak Rej.', 'Model',
-        'Pilot 1', 'Pilot 2', 'Rodzaj Startu',
+        'Pilot 1','Licencja PIC', 'Pilot 2', 'Licencja SIC' , 'Rodzaj Startu',
         'Lotnisko Start', 'Lotnisko Ląd',
         'Start', 'Lądowanie', 'Nalot (h)',
-        'Koszt (PLN)', 'Usterka'
+        'Koszt (PLN)', 'Usterka', 'Uwagi'
     ])
 
     for row in result:
@@ -298,6 +298,11 @@ def export_csv():
         if row.pilot_2 and not (is_priv or row.id_p2 == current_user.id_pilot):
             p2 = "***"
 
+        lic1 = row.licencja_p1 if (is_priv or row.id_p1 == current_user.id_pilot) else "***"
+        lic2 = row.licencja_p2 if row.pilot_2 else ""
+        if row.licencja_p2 and not (is_priv or row.id_p2 == current_user.id_pilot):
+            p2 = "***"
+
         koszt = f"{row.koszt_calkowity:.2f}".replace('.', ',') if is_priv else "***"
 
         writer.writerow([
@@ -306,7 +311,9 @@ def export_csv():
             row.znak_rej,
             row.typ,
             p1,
+            lic1,
             p2,
+            lic2,
             row.rodzaj_startu,
             row.kod_startu,
             row.kod_ladowania,
@@ -314,7 +321,9 @@ def export_csv():
             row.dt_ladowanie.strftime('%H:%M') if row.dt_ladowanie else "",
             f"{row.czas_h:.2f}".replace('.', ','),
             koszt,
-            row.ma_usterke
+            row.ma_usterke,
+            row.uwagi
+
         ])
 
     output.seek(0)
@@ -377,8 +386,8 @@ def add_flight():
 
         try:
             res = db.session.execute(text("""
-                                          INSERT INTO pdt_core.lot (id_szybowiec, dt_start, dt_ladowanie, kod_startu,
-                                                                    kod_ladowania, rodzaj_startu, uwagi, id_nadzorujacy)
+                                          INSERT INTO pdt_core.lot (id_szybowiec, dt_start, dt_ladowanie, id_start,
+                                                                    id_ladowanie, rodzaj_startu, uwagi, id_nadzorujacy)
                                           VALUES (:s_id, :d_s, :d_l, :i_s, :i_l, :r_s, :uw, :nadzor)
                                           RETURNING id_lot
                                           """), {
@@ -506,8 +515,8 @@ def edit_flight(id_lot):
                                     SET id_szybowiec=:s_id,
                                         dt_start=:d_s,
                                         dt_ladowanie=:d_l,
-                                        kod_startu=:i_s,
-                                        kod_ladowania=:i_l,
+                                        id_start=:i_s,
+                                        id_ladowanie=:i_l,
                                         rodzaj_startu=:r_s,
                                         uwagi=:uw,
                                         id_nadzorujacy=:nadzor
